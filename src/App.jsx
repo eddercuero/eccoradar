@@ -146,33 +146,68 @@ function guardar(clave, valor) {
   try { localStorage.setItem(clave, JSON.stringify(valor)); } catch { /* noop */ }
 }
 
-/* ---------- visor de perfil: aún sin conexión real a cada red ---------- */
+/* ---------- visor en vivo: contenido real de cada red, sin analizar nada ---------- */
 
-const PLATAFORMA_INFO = {
-  Facebook: { color: "#1877F2", requisito: "conectar la Página de Facebook con la API oficial de Meta (Graph API) y el permiso de administrador de esa página" },
-  X: { color: "#0F1419", requisito: "conectar la cuenta con la API de X (antes Twitter)" },
-  Instagram: { color: "#C13584", requisito: "conectar la cuenta de Instagram profesional con la API oficial de Meta" },
-  TikTok: { color: "#000000", requisito: "conectar la cuenta con la API de TikTok for Developers" },
-};
+function VisorFacebook({ cuenta }) {
+  const src = `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(cuenta.link)}&tabs=timeline&width=460&height=600&small_header=false&adapt_container_width=true&hide_cover=false&show_facepile=false`;
+  return (
+    <div className="visor-en-vivo">
+      <iframe key={cuenta.id} src={src} width="100%" height="600" style={{ border: "none", overflow: "hidden" }} scrolling="no" frameBorder="0" allow="encrypted-media" title={"Facebook en vivo - " + cuenta.handle} />
+      <div className="visor-nota">Esto es la página real de Facebook, mostrada en vivo con el reproductor oficial de Meta — Eco Radar no analiza ni guarda nada de lo que se ve aquí.</div>
+    </div>
+  );
+}
 
-function SinConexionReal({ cuenta }) {
+function VisorX({ cuenta }) {
+  const contenedorRef = useRef(null);
+  useEffect(() => {
+    function cargarWidget() {
+      if (window.twttr && window.twttr.widgets) window.twttr.widgets.load(contenedorRef.current);
+    }
+    if (!document.getElementById("twitter-widgets-js")) {
+      const script = document.createElement("script");
+      script.id = "twitter-widgets-js";
+      script.src = "https://platform.twitter.com/widgets.js";
+      script.async = true;
+      script.onload = cargarWidget;
+      document.body.appendChild(script);
+    } else {
+      cargarWidget();
+    }
+  }, [cuenta.id]);
+  return (
+    <div className="visor-en-vivo" ref={contenedorRef}>
+      <a className="twitter-timeline" data-height="600" data-theme="light" href={cuenta.link}>Publicaciones de {cuenta.handle} en X</a>
+      <div className="visor-nota">Esto es el cronograma real de X (Twitter), mostrado en vivo con el widget oficial de la plataforma.</div>
+    </div>
+  );
+}
+
+function VisorEnlaceReal({ cuenta }) {
   const info = PLATAFORMA_INFO[cuenta.plataforma] || PLATAFORMA_INFO.Facebook;
-  const esPropia = !TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo);
   return (
     <div className="sin-conexion">
       <div className="sin-conexion-icono" style={{ background: info.color }}><Link2 /></div>
-      <div className="sin-conexion-titulo">Todavía no hay conexión real con {cuenta.plataforma}</div>
+      <div className="sin-conexion-titulo">{cuenta.plataforma} no permite mostrarse en vivo aquí dentro</div>
       <div className="sin-conexion-texto">
-        Esta cuenta está guardada en Eco Radar, pero por ahora no estamos leyendo sus publicaciones de verdad — nada de lo que ves aquí es inventado, simplemente no hay nada que mostrar todavía.
+        A diferencia de Facebook y X, {cuenta.plataforma} no ofrece una forma de insertar el perfil completo en tiempo real dentro de otra página — solo permite abrir el perfil real directamente.
       </div>
-      <div className="sin-conexion-texto">
-        {esPropia
-          ? <>Para ver aquí las publicaciones reales de <strong>{cuenta.handle}</strong>, hace falta {info.requisito}.</>
-          : <>Como <strong>{cuenta.handle}</strong> no es una cuenta que ustedes administran, las plataformas no permiten leer sus publicaciones automáticamente — lo normal en estos casos es que el equipo la revise manualmente, o contratar un servicio de monitoreo (ej. Meltwater, Brandwatch, Talkwalker) que sí tiene acceso a ese tipo de datos.</>
-        }
-      </div>
+      <a className="btn btn-primario" href={cuenta.link} target="_blank" rel="noreferrer"><Eye /> Abrir el perfil real de {cuenta.handle}</a>
     </div>
   );
+}
+
+const PLATAFORMA_INFO = {
+  Facebook: { color: "#1877F2" },
+  X: { color: "#0F1419" },
+  Instagram: { color: "#C13584" },
+  TikTok: { color: "#000000" },
+};
+
+function VisorEnVivo({ cuenta }) {
+  if (cuenta.plataforma === "Facebook") return <VisorFacebook cuenta={cuenta} />;
+  if (cuenta.plataforma === "X") return <VisorX cuenta={cuenta} />;
+  return <VisorEnlaceReal cuenta={cuenta} />;
 }
 
 /* ---------- modo TV (pantalla tipo aeropuerto) ---------- */
@@ -448,7 +483,9 @@ export default function EcoRadar() {
     const plataforma = detectarPlataforma(linkNuevo);
     const handleGenerado = "@" + (linkNuevo.split("/").filter(Boolean).pop() || "cuenta_nueva").slice(0, 20);
     const idNueva = Date.now();
-    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, estado: TIPOS_CUENTA_NEGATIVOS.includes(tipoNuevaCuenta) ? "Sin conexión" : "Sin conexión", sentimiento: null, menciones: null, revisado: "sin conectar" }, ...cuentas]);
+    let url = linkNuevo.trim();
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, link: url, estado: "En vivo" }, ...cuentas]);
     setLinkNuevo("");
   }
   function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
@@ -861,7 +898,7 @@ export default function EcoRadar() {
 
         /* ---- modal visor de perfil ---- */
         .modal-overlay { position: absolute; inset: 0; background: rgba(20,22,25,0.55); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 30px; }
-        .modal-feed { width: 100%; max-width: 480px; height: 100%; max-height: 640px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+        .modal-feed { width: 100%; max-width: 500px; height: 100%; max-height: 720px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
         .modal-feed-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
         .modal-feed-header-info { display: flex; align-items: center; gap: 10px; }
         .modal-feed-avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; }
@@ -991,6 +1028,9 @@ export default function EcoRadar() {
         .sin-conexion-icono svg { width: 20px; height: 20px; }
         .sin-conexion-titulo { font-size: 15px; font-weight: 600; }
         .sin-conexion-texto { font-size: 12.5px; color: var(--muted); line-height: 1.5; max-width: 340px; }
+        .visor-en-vivo { display: flex; flex-direction: column; }
+        .visor-en-vivo iframe { display: block; }
+        .visor-nota { font-size: 10.5px; color: var(--dim); font-style: italic; padding: 10px 14px; border-top: 1px solid var(--border); }
       `}</style>
 
       {/* -------- flujo de acceso -------- */}
@@ -1414,9 +1454,9 @@ export default function EcoRadar() {
                       <option value="Atacante">Cuenta que ataca</option>
                       <option value="Influencer en contra">Influencer en contra</option>
                     </select>
-                    <button className="btn btn-primario" onClick={agregarCuenta}><Link2 /> Analizar y monitorear</button>
+                    <button className="btn btn-primario" onClick={agregarCuenta}><Link2 /> Agregar a la lista</button>
                   </div>
-                  <div className="aviso-simulado">Prototipo con datos de ejemplo — para leer cuentas reales cada día hace falta conectar esto a las APIs de cada red social.</div>
+                  <div className="aviso-simulado">Al hacer clic en una cuenta vas a ver su contenido real y en vivo (Facebook y X se muestran integrados aquí mismo; Instagram y TikTok abren el perfil real en una pestaña nueva, porque esas dos plataformas no permiten insertarse dentro de otra página).</div>
                 </div>
 
                 <div className="kpis" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
@@ -1438,11 +1478,9 @@ export default function EcoRadar() {
                           return (
                             <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => setCuentaAbierta(c.id)}>
                               <div className="icono-plat"><Icono /></div>
-                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · {c.revisado === "sin conectar" ? "sin conectar todavía" : "revisado " + c.revisado}</div></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
-                                <div className="cuenta-metrica"><div className={"valor " + (c.sentimiento == null ? "" : claseSentimiento(c.sentimiento))}>{c.sentimiento == null ? "—" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                                <div className="cuenta-metrica"><div className="valor">{c.menciones == null ? "—" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                                <span className="etiqueta etq-baja">{c.estado}</span>
+                                <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1462,11 +1500,9 @@ export default function EcoRadar() {
                           return (
                             <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => setCuentaAbierta(c.id)}>
                               <div className="icono-plat"><Icono /></div>
-                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · {c.revisado === "sin conectar" ? "sin conectar todavía" : "revisado " + c.revisado}</div></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
-                                <div className="cuenta-metrica"><div className={"valor " + (c.sentimiento == null ? "" : claseSentimiento(c.sentimiento))}>{c.sentimiento == null ? "—" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                                <div className="cuenta-metrica"><div className="valor">{c.menciones == null ? "—" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                                <span className="etiqueta etq-baja">{c.estado}</span>
+                                <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1666,7 +1702,7 @@ export default function EcoRadar() {
                 <IconCerrar className="modal-feed-cerrar" onClick={() => setCuentaAbierta(null)} />
               </div>
               <div className="modal-feed-body">
-                <SinConexionReal cuenta={c} />
+                <VisorEnVivo cuenta={c} />
               </div>
             </div>
           </div>
