@@ -146,132 +146,30 @@ function guardar(clave, valor) {
   try { localStorage.setItem(clave, JSON.stringify(valor)); } catch { /* noop */ }
 }
 
-/* ---------- publicaciones simuladas por cuenta (visor de perfil) ---------- */
+/* ---------- visor de perfil: aún sin conexión real a cada red ---------- */
 
-const TEMAS_PROPIA = [
-  "Avance de obra en el sector norte: 70% completado.",
-  "Capacitación a funcionarios sobre atención ciudadana.",
-  "Campaña de vacunación este fin de semana en el parque central.",
-  "Rendición de cuentas 2026: invitación abierta a la ciudadanía.",
-  "Mejoras en el alumbrado público de tres barrios.",
-  "Feria de emprendedores locales este sábado.",
-];
-const TEMAS_ATACANTE = [
-  "¿Y la promesa de la obra del puente? Ya pasó un año.",
-  "Vecinos denuncian falta de respuesta a reclamos por el agua potable.",
-  "Nueva denuncia ciudadana por manejo de fondos públicos.",
-  "¿Por qué no informan sobre el contrato de la vía?",
-  "Otra vez sin recolección de basura en el sector.",
-];
+const PLATAFORMA_INFO = {
+  Facebook: { color: "#1877F2", requisito: "conectar la Página de Facebook con la API oficial de Meta (Graph API) y el permiso de administrador de esa página" },
+  X: { color: "#0F1419", requisito: "conectar la cuenta con la API de X (antes Twitter)" },
+  Instagram: { color: "#C13584", requisito: "conectar la cuenta de Instagram profesional con la API oficial de Meta" },
+  TikTok: { color: "#000000", requisito: "conectar la cuenta con la API de TikTok for Developers" },
+};
 
-function generarPublicaciones(cuenta) {
-  const temas = TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo) ? TEMAS_ATACANTE : TEMAS_PROPIA;
-  const posts = [];
-  for (let i = 0; i < 6; i++) {
-    const seed = hashSeed(cuenta.id + "-" + i);
-    posts.push({
-      id: i,
-      texto: temas[(cuenta.id + i) % temas.length],
-      likes: Math.round(10 + seed * 300),
-      comentarios: Math.round(1 + seed * 40),
-      compartidos: Math.round(seed * 25),
-      vistas: Math.round(500 + seed * 15000),
-      fecha: i === 0 ? "hace 3 h" : i === 1 ? "hace 1 día" : `hace ${i + 1} días`,
-      tono: seed,
-    });
-  }
-  return posts;
-}
-
-function FeedFacebook({ cuenta, posts }) {
+function SinConexionReal({ cuenta }) {
+  const info = PLATAFORMA_INFO[cuenta.plataforma] || PLATAFORMA_INFO.Facebook;
+  const esPropia = !TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo);
   return (
-    <div className="fb-feed">
-      <div className="fb-perfil-cab">
-        <div className="fb-avatar"><Facebook /></div>
-        <div>
-          <div className="fb-nombre">{cuenta.handle}</div>
-          <div className="fb-seguidores">{(1000 + Math.round(hashSeed(cuenta.id + "f") * 9000)).toLocaleString("es-ES")} seguidores</div>
-        </div>
+    <div className="sin-conexion">
+      <div className="sin-conexion-icono" style={{ background: info.color }}><Link2 /></div>
+      <div className="sin-conexion-titulo">Todavía no hay conexión real con {cuenta.plataforma}</div>
+      <div className="sin-conexion-texto">
+        Esta cuenta está guardada en Eco Radar, pero por ahora no estamos leyendo sus publicaciones de verdad — nada de lo que ves aquí es inventado, simplemente no hay nada que mostrar todavía.
       </div>
-      {posts.map(p => (
-        <div className="fb-post" key={p.id}>
-          <div className="fb-post-cab">
-            <div className="fb-avatar-sm"><Facebook /></div>
-            <div><div className="fb-post-nombre">{cuenta.handle}</div><div className="fb-post-fecha">{p.fecha}</div></div>
-          </div>
-          <div className="fb-post-texto">{p.texto}</div>
-          <div className="fb-post-imagen" style={{ background: `hsl(${Math.round(p.tono * 360)}, 35%, 88%)` }} />
-          <div className="fb-post-metricas">
-            <span><Heart /> {p.likes}</span>
-            <span><MessageCircle /> {p.comentarios}</span>
-            <span><Share2 /> {p.compartidos}</span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FeedX({ cuenta, posts }) {
-  return (
-    <div className="x-feed">
-      {posts.map(p => (
-        <div className="x-post" key={p.id}>
-          <div className="x-avatar"><Twitter /></div>
-          <div className="x-post-contenido">
-            <div className="x-post-cab"><span className="x-nombre">{cuenta.handle}</span><span className="x-usuario">{cuenta.handle} · {p.fecha}</span></div>
-            <div className="x-post-texto">{p.texto}</div>
-            <div className="x-post-metricas">
-              <span><MessageCircle /> {p.comentarios}</span>
-              <span><Repeat2 /> {p.compartidos}</span>
-              <span><Heart /> {p.likes}</span>
-              <span><Eye /> {p.vistas.toLocaleString("es-ES")}</span>
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function FeedInstagram({ cuenta, posts }) {
-  return (
-    <div className="ig-feed">
-      <div className="ig-perfil-cab">
-        <div className="ig-avatar"><Instagram /></div>
-        <div>
-          <div className="ig-nombre">{cuenta.handle}</div>
-          <div className="ig-seguidores">{(800 + Math.round(hashSeed(cuenta.id + "i") * 5000)).toLocaleString("es-ES")} seguidores · {posts.length} publicaciones</div>
-        </div>
-      </div>
-      <div className="ig-grid">
-        {posts.map(p => (
-          <div className="ig-item" key={p.id} style={{ background: `hsl(${Math.round(p.tono * 360)}, 55%, 70%)` }}>
-            <div className="ig-item-overlay"><span><Heart /> {p.likes}</span><span><MessageCircle /> {p.comentarios}</span></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FeedTikTok({ cuenta, posts }) {
-  return (
-    <div className="tt-feed">
-      <div className="tt-perfil-cab">
-        <div className="tt-avatar"><Music2 /></div>
-        <div>
-          <div className="tt-nombre">{cuenta.handle}</div>
-          <div className="tt-seguidores">{(2000 + Math.round(hashSeed(cuenta.id + "t") * 20000)).toLocaleString("es-ES")} seguidores</div>
-        </div>
-      </div>
-      <div className="tt-grid">
-        {posts.map(p => (
-          <div className="tt-item" key={p.id} style={{ background: `hsl(${Math.round(p.tono * 360)}, 30%, 20%)` }}>
-            <Play className="tt-play" />
-            <div className="tt-vistas"><Eye /> {p.vistas.toLocaleString("es-ES")}</div>
-          </div>
-        ))}
+      <div className="sin-conexion-texto">
+        {esPropia
+          ? <>Para ver aquí las publicaciones reales de <strong>{cuenta.handle}</strong>, hace falta {info.requisito}.</>
+          : <>Como <strong>{cuenta.handle}</strong> no es una cuenta que ustedes administran, las plataformas no permiten leer sus publicaciones automáticamente — lo normal en estos casos es que el equipo la revise manualmente, o contratar un servicio de monitoreo (ej. Meltwater, Brandwatch, Talkwalker) que sí tiene acceso a ese tipo de datos.</>
+        }
       </div>
     </div>
   );
@@ -470,7 +368,7 @@ export default function EcoRadar() {
   const turnosVisibles = esAdmin ? turnos : turnos.filter(t => t.persona === nombreVisible);
   const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
   const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
-  const cuentasEnAlerta = cuentas.filter(c => c.estado !== "Activa").length;
+  const cuentasEnAlerta = cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length;
   const tareasCompletadasHoy = tareasVisibles.filter(t => t.estado === "Completado").length;
 
   /* ---- formularios ---- */
@@ -545,16 +443,8 @@ export default function EcoRadar() {
     const plataforma = detectarPlataforma(linkNuevo);
     const handleGenerado = "@" + (linkNuevo.split("/").filter(Boolean).pop() || "cuenta_nueva").slice(0, 20);
     const idNueva = Date.now();
-    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, estado: "Analizando", sentimiento: 0, menciones: 0, revisado: "ahora" }, ...cuentas]);
+    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, estado: TIPOS_CUENTA_NEGATIVOS.includes(tipoNuevaCuenta) ? "Sin conexión" : "Sin conexión", sentimiento: null, menciones: null, revisado: "sin conectar" }, ...cuentas]);
     setLinkNuevo("");
-    setTimeout(() => {
-      const esNegativa = TIPOS_CUENTA_NEGATIVOS.includes(tipoNuevaCuenta);
-      setCuentas(prev => prev.map(c => c.id === idNueva ? {
-        ...c, estado: esNegativa ? "Alerta" : "Activa",
-        sentimiento: esNegativa ? 15 + Math.round(Math.random() * 20) : 60 + Math.round(Math.random() * 30),
-        menciones: 10 + Math.round(Math.random() * 80), revisado: "hace instantes",
-      } : c));
-    }, 1600);
   }
   function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
   function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
@@ -1090,6 +980,12 @@ export default function EcoRadar() {
         .ficha-detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
         .ficha-subtitulo { font-size: 11.5px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
         .ficha-item-fila { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
+
+        .sin-conexion { padding: 40px 30px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .sin-conexion-icono { width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; }
+        .sin-conexion-icono svg { width: 20px; height: 20px; }
+        .sin-conexion-titulo { font-size: 15px; font-weight: 600; }
+        .sin-conexion-texto { font-size: 12.5px; color: var(--muted); line-height: 1.5; max-width: 340px; }
       `}</style>
 
       {/* -------- flujo de acceso -------- */}
@@ -1226,7 +1122,7 @@ export default function EcoRadar() {
                   <div className="kpi acento-exito"><div className="kpi-valor">{tareasCompletadasHoy}/{tareasVisibles.length}</div><div className="kpi-label">Tareas completadas hoy</div></div>
                   <div className="kpi acento-rojo"><div className="kpi-valor">{rankingOrdenado.length ? cumplimiento(rankingOrdenado[0]) : 0}%</div><div className="kpi-label">Mejor cumplimiento del equipo</div></div>
                   <div className="kpi acento-acero"><div className="kpi-valor">{proyectosVisibles.length}</div><div className="kpi-label">Proyectos activos</div></div>
-                  <div className="kpi acento-plomo"><div className="kpi-valor">{cuentasEnAlerta}</div><div className="kpi-label">Cuentas en alerta ahora</div></div>
+                  <div className="kpi acento-plomo"><div className="kpi-valor">{cuentasEnAlerta}</div><div className="kpi-label">Cuentas hostiles monitoreadas</div></div>
                 </div>
                 <div className="grid-dos">
                   <div>
@@ -1247,9 +1143,9 @@ export default function EcoRadar() {
                   </div>
                   <div>
                     <div className="panel">
-                      <div className="panel-titulo">Alertas de redes</div>
+                      <div className="panel-titulo">Cuentas hostiles por revisar</div>
                       {cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).slice(0, 4).map(c => (
-                        <div className="alerta" key={c.id}><AlertTriangle /><div><div className="alerta-texto">Nueva actividad en <strong>{c.handle}</strong> ({c.plataforma})</div><div className="alerta-hora">Revisado {c.revisado}</div></div></div>
+                        <div className="alerta" key={c.id}><AlertTriangle /><div><div className="alerta-texto"><strong>{c.handle}</strong> ({c.plataforma}) — {c.tipo}</div><div className="alerta-hora">Sin conexión real todavía, clic para más detalle</div></div></div>
                       ))}
                       {cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length === 0 && <div className="campo-vacio">Sin cuentas hostiles monitoreadas aún.</div>}
                     </div>
@@ -1535,13 +1431,13 @@ export default function EcoRadar() {
                         {cuentas.filter(c => c.tipo === tipo).map(c => {
                           const Icono = PLATAFORMA_ICONO[c.plataforma];
                           return (
-                            <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
+                            <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => setCuentaAbierta(c.id)}>
                               <div className="icono-plat"><Icono /></div>
-                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · {c.revisado === "sin conectar" ? "sin conectar todavía" : "revisado " + c.revisado}</div></div>
                               <div className="cuenta-metricas">
-                                <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                                <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                                <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-completado")}>{c.estado}</span>
+                                <div className="cuenta-metrica"><div className={"valor " + (c.sentimiento == null ? "" : claseSentimiento(c.sentimiento))}>{c.sentimiento == null ? "—" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
+                                <div className="cuenta-metrica"><div className="valor">{c.menciones == null ? "—" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
+                                <span className="etiqueta etq-baja">{c.estado}</span>
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1559,13 +1455,13 @@ export default function EcoRadar() {
                         {cuentas.filter(c => c.tipo === tipo).map(c => {
                           const Icono = PLATAFORMA_ICONO[c.plataforma];
                           return (
-                            <div className="tarjeta-cuenta fila-clic" key={c.id} style={{ borderColor: c.estado === "Crítica" ? "rgba(198,29,45,0.4)" : "var(--border)" }} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
+                            <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => setCuentaAbierta(c.id)}>
                               <div className="icono-plat"><Icono /></div>
-                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · {c.revisado === "sin conectar" ? "sin conectar todavía" : "revisado " + c.revisado}</div></div>
                               <div className="cuenta-metricas">
-                                <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                                <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                                <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-cuenta-atacante")}>{c.estado}</span>
+                                <div className="cuenta-metrica"><div className={"valor " + (c.sentimiento == null ? "" : claseSentimiento(c.sentimiento))}>{c.sentimiento == null ? "—" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
+                                <div className="cuenta-metrica"><div className="valor">{c.menciones == null ? "—" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
+                                <span className="etiqueta etq-baja">{c.estado}</span>
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1756,7 +1652,6 @@ export default function EcoRadar() {
       {cuentaAbierta && (() => {
         const c = cuentas.find(x => x.id === cuentaAbierta);
         if (!c) return null;
-        const posts = generarPublicaciones(c);
         const Icono = PLATAFORMA_ICONO[c.plataforma];
         return (
           <div className="modal-overlay" onClick={() => setCuentaAbierta(null)}>
@@ -1765,13 +1660,9 @@ export default function EcoRadar() {
                 <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Icono /></div><div><div className="modal-feed-nombre">{c.handle}</div><div className="modal-feed-sub">{c.plataforma} · {c.tipo}</div></div></div>
                 <IconCerrar className="modal-feed-cerrar" onClick={() => setCuentaAbierta(null)} />
               </div>
-              <div className={"modal-feed-body plat-" + c.plataforma.replace(/[^a-zA-Z]/g, "").toLowerCase()}>
-                {c.plataforma === "Facebook" && <FeedFacebook cuenta={c} posts={posts} />}
-                {c.plataforma === "X" && <FeedX cuenta={c} posts={posts} />}
-                {c.plataforma === "Instagram" && <FeedInstagram cuenta={c} posts={posts} />}
-                {c.plataforma === "TikTok" && <FeedTikTok cuenta={c} posts={posts} />}
+              <div className="modal-feed-body">
+                <SinConexionReal cuenta={c} />
               </div>
-              <div className="modal-feed-footer">Vista de solo lectura dentro de Eco Radar — publicaciones de ejemplo.</div>
             </div>
           </div>
         );
