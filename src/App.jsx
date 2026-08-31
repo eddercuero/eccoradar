@@ -58,8 +58,13 @@ const NAV = [
   { id: "roles", label: "RRHH", icon: UserCog },
 ];
 
+const ROL_DIRECTORA = "Director/a de Comunicación";
+const ROLES_SEED = [ROL_DIRECTORA, "Diseñador", "Redactor", "Community Manager", "Fotografía / Video", "Analista de monitoreo", "Encargado"];
+const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
+const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
+
 function accesoPorRol(rol) {
-  if (rol === "Directora" || rol === "Asesor") return ["resumen", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
+  if (rol === ROL_DIRECTORA || rol === "Asesor") return ["resumen", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
   if (rol === "Encargado") return ["resumen", "equipo", "metas", "proyectos", "ranking", "calendario"];
   return ["equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
 }
@@ -67,8 +72,8 @@ function accesoPorRol(rol) {
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
 
 const PERSONAS_SEED = [
-  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: "Directora", area: "Institucional", foto: "", horario: [], tareasFrecuentes: [] },
-  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional", foto: "", horario: [], tareasFrecuentes: [] },
+  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: ROL_DIRECTORA, area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "", foto: "", horario: [], tareasFrecuentes: [] },
+  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "Directora de Comunicación", foto: "", horario: [], tareasFrecuentes: [] },
 ];
 
 const VACIO = {
@@ -296,7 +301,7 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
         <div className="tv-contenido">
           <div className="tv-titulo-slide">Tareas de hoy por persona</div>
           <div className="tv-grid-personas">
-            {personas.filter(p => p.rol !== "Directora" && p.rol !== "Asesor").map(p => {
+            {personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor").map(p => {
               const propias = tareas.filter(t => t.responsable === p.nombre);
               return (
                 <div className="tv-tarjeta" key={p.id}>
@@ -351,6 +356,26 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
   );
 }
 
+/* ---------- nodo recursivo del organigrama ---------- */
+
+function NodoOrganigrama({ persona, hijosDe }) {
+  const hijos = hijosDe(persona.nombre);
+  return (
+    <div className="organigrama-rama">
+      <div className="organigrama-caja">
+        <div className="organigrama-avatar">{persona.foto ? <img src={persona.foto} alt={persona.nombre} /> : <span>{persona.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
+        <div className="organigrama-nombre">{persona.nombre}</div>
+        <div className="organigrama-rol">{persona.rol}</div>
+      </div>
+      {hijos.length > 0 && (
+        <div className="organigrama-hijos">
+          {hijos.map(h => <NodoOrganigrama key={h.id} persona={h} hijosDe={hijosDe} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- componente principal ---------- */
 
 export default function EcoRadar() {
@@ -363,6 +388,10 @@ export default function EcoRadar() {
   const [errorLogin, setErrorLogin] = useState("");
 
   const [personas, setPersonas] = useState(() => cargar("eco_gad_personas", VACIO.personas));
+  const [rolesDisponibles, setRolesDisponibles] = useState(() => cargar("eco_gad_roles_disp", ROLES_SEED));
+  const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
+  const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
+  const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
   const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
   const [metas, setMetas] = useState(() => cargar("eco_gad_metas", VACIO.metas));
   const [turnos, setTurnos] = useState(() => cargar("eco_gad_turnos", VACIO.turnos));
@@ -373,6 +402,10 @@ export default function EcoRadar() {
   const [eventos, setEventos] = useState(() => cargar("eco_gad_eventos", VACIO.eventos));
 
   useEffect(() => guardar("eco_gad_personas", personas), [personas]);
+  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
+  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
   useEffect(() => guardar("eco_gad_tareas", tareas), [tareas]);
   useEffect(() => guardar("eco_gad_metas", metas), [metas]);
   useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
@@ -424,7 +457,7 @@ export default function EcoRadar() {
 
   const usuarioActual = sesion?.tipo === "usuario" ? personas.find(p => p.id === sesion.usuarioId) : null;
   const rolActual = sesion?.tipo === "asesor" ? "Asesor" : (usuarioActual ? usuarioActual.rol : null);
-  const esAdmin = rolActual === "Directora" || rolActual === "Asesor";
+  const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor";
   const accesoPermitido = rolActual ? accesoPorRol(rolActual) : [];
 
   useEffect(() => { if (rolActual && !accesoPermitido.includes(modulo)) setModulo(accesoPermitido[0]); /* eslint-disable-next-line */ }, [rolActual]);
@@ -443,7 +476,7 @@ export default function EcoRadar() {
   /* ---- formularios ---- */
   const [filtroArea, setFiltroArea] = useState("Todas");
   const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
-  const personasEquipo = personas.filter(p => p.rol !== "Directora" && p.rol !== "Asesor");
+  const personasEquipo = personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
   const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
   function agregarTarea() {
     if (!nuevaTarea.tarea.trim() || !nuevaTarea.responsable) return;
@@ -536,14 +569,39 @@ export default function EcoRadar() {
   function eliminarWeb(id) { setWeb(web.filter(w => w.id !== id)); }
 
   const [mostrarFormPersona, setMostrarFormPersona] = useState(false);
-  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: "Diseñador", area: AREAS[0] });
+  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
-    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, foto: "", horario: [], tareasFrecuentes: [] }]);
-    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: "Diseñador", area: AREAS[0] });
+    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [] }]);
+    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
     setMostrarFormPersona(false);
   }
   function eliminarPersona(id) { setPersonas(personas.filter(p => p.id !== id)); }
+
+  const [nuevoRolTexto, setNuevoRolTexto] = useState("");
+  function agregarRolNuevo() {
+    const v = nuevoRolTexto.trim();
+    if (!v || rolesDisponibles.includes(v)) return;
+    setRolesDisponibles([...rolesDisponibles, v]);
+    setNuevaPersona({ ...nuevaPersona, rol: v });
+    setNuevoRolTexto("");
+  }
+  const [nuevaModalidadTexto, setNuevaModalidadTexto] = useState("");
+  function agregarModalidadNueva() {
+    const v = nuevaModalidadTexto.trim();
+    if (!v || modalidadesDisponibles.includes(v)) return;
+    setModalidadesDisponibles([...modalidadesDisponibles, v]);
+    setNuevaPersona({ ...nuevaPersona, modalidad: v });
+    setNuevaModalidadTexto("");
+  }
+  const [nuevaUnidadTexto, setNuevaUnidadTexto] = useState("");
+  function agregarUnidadNueva() {
+    const v = nuevaUnidadTexto.trim();
+    if (!v || unidadesDisponibles.includes(v)) return;
+    setUnidadesDisponibles([...unidadesDisponibles, v]);
+    setUnidadActual(v);
+    setNuevaUnidadTexto("");
+  }
 
   const [fichaAbierta, setFichaAbierta] = useState(null);
   const [formHorario, setFormHorario] = useState({});
@@ -574,7 +632,7 @@ export default function EcoRadar() {
 
   function descargarPlantillaExcel() {
     const filas = [
-      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional" },
+      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación" },
     ];
     const hoja = XLSX.utils.json_to_sheet(filas);
     const libro = XLSX.utils.book_new();
@@ -594,20 +652,26 @@ export default function EcoRadar() {
         id: Date.now() + i,
         nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
         rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
-        foto: "", horario: [], tareasFrecuentes: [],
+        modalidad: String(f.Modalidad || modalidadesDisponibles[0]), jefeDirecto: f.JefeDirecto ? String(f.JefeDirecto) : "",
+        unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [],
       }));
-      if (nuevas.length) setPersonas(prev => [...prev, ...nuevas]);
+      if (nuevas.length) {
+        setPersonas(prev => [...prev, ...nuevas]);
+        setRolesDisponibles(prevR => { const extra = nuevas.map(n => n.rol).filter(r => !prevR.includes(r)); return extra.length ? [...prevR, ...extra] : prevR; });
+        setModalidadesDisponibles(prevM => { const extra = nuevas.map(n => n.modalidad).filter(m => !prevM.includes(m)); return extra.length ? [...prevM, ...extra] : prevM; });
+      }
     };
     lector.readAsArrayBuffer(archivo);
     evento.target.value = "";
   }
 
-  const nivelesOrganigrama = useMemo(() => {
-    const directoras = personas.filter(p => p.rol === "Directora");
-    const encargados = personas.filter(p => p.rol === "Encargado");
-    const resto = personas.filter(p => p.rol !== "Directora" && p.rol !== "Encargado");
-    return [directoras, encargados, resto].filter(nivel => nivel.length > 0);
-  }, [personas]);
+  const personasUnidad = useMemo(() => personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === unidadActual), [personas, unidadActual]);
+  function construirArbol(lista) {
+    const raices = lista.filter(p => !p.jefeDirecto || !lista.some(o => o.nombre === p.jefeDirecto));
+    function hijosDe(nombre) { return lista.filter(p => p.jefeDirecto === nombre); }
+    return { raices, hijosDe };
+  }
+  const arbolOrganigrama = useMemo(() => construirArbol(personasUnidad), [personasUnidad]);
 
 
   const diasDelMes = useMemo(() => {
@@ -1005,9 +1069,10 @@ export default function EcoRadar() {
         .tv-ranking-pct { font-family: 'Newsreader', serif; font-size: 28px; color: #C61D2D; }
 
         /* ---- RRHH: organigrama y fichas ---- */
-        .organigrama { display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 10px 0; }
-        .organigrama-nivel { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; position: relative; }
-        .organigrama-nivel:not(:first-child)::before { content: ""; position: absolute; top: -18px; left: 50%; width: 1px; height: 18px; background: var(--border); }
+        .organigrama { display: flex; gap: 40px; padding: 10px 20px; justify-content: center; overflow-x: auto; }
+        .organigrama-rama { display: flex; flex-direction: column; align-items: center; }
+        .organigrama-hijos { display: flex; gap: 24px; margin-top: 22px; position: relative; }
+        .organigrama-hijos::before { content: ""; position: absolute; top: -22px; left: 50%; width: 1px; height: 22px; background: var(--border); }
         .organigrama-caja { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; text-align: center; min-width: 130px; }
         .organigrama-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; overflow: hidden; font-size: 13px; font-weight: 600; color: var(--muted); }
         .organigrama-avatar img { width: 100%; height: 100%; object-fit: cover; }
@@ -1581,26 +1646,28 @@ export default function EcoRadar() {
             {modulo === "roles" && esAdmin && (
               <>
                 <div className="panel">
-                  <div className="panel-titulo">Organigrama</div>
+                  <div className="panel-titulo">¿Qué equipo quieres gestionar?</div>
+                  <div className="chips">
+                    {unidadesDisponibles.map(u => <div key={u} className={"chip" + (unidadActual === u ? " activo" : "")} onClick={() => setUnidadActual(u)}>{u}</div>)}
+                  </div>
+                  <div className="form-inline" style={{ marginBottom: 0 }}>
+                    <input type="text" placeholder="Agregar nuevo equipo/dirección (ej. Turismo)" value={nuevaUnidadTexto} onChange={e => setNuevaUnidadTexto(e.target.value)} />
+                    <button className="btn btn-sm" onClick={agregarUnidadNueva}><Plus /> Agregar equipo</button>
+                  </div>
+                  <div className="aviso-simulado">Cada equipo (Dircom, Bomberos, Patronato, Comunicación Externa, u otro que agregues) tiene su propia gente y su propio organigrama — son autónomos entre sí.</div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-titulo">Organigrama · {unidadActual}</div>
                   <div className="organigrama">
-                    {nivelesOrganigrama.map((nivel, i) => (
-                      <div className="organigrama-nivel" key={i}>
-                        {nivel.map(p => (
-                          <div className="organigrama-caja" key={p.id}>
-                            <div className="organigrama-avatar">{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
-                            <div className="organigrama-nombre">{p.nombre}</div>
-                            <div className="organigrama-rol">{p.rol}</div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                    {personas.length === 0 && <div className="campo-vacio">Agrega personas para ver el organigrama.</div>}
+                    {arbolOrganigrama.raices.map(p => <NodoOrganigrama key={p.id} persona={p} hijosDe={arbolOrganigrama.hijosDe} />)}
+                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para ver su organigrama.</div>}
                   </div>
                 </div>
 
                 <div className="panel">
                   <div className="panel-titulo">
-                    Fichas del equipo
+                    Fichas de {unidadActual}
                     <div style={{ display: "flex", gap: 8 }}>
                       <button className="btn btn-sm" onClick={descargarPlantillaExcel}><Download /> Descargar plantilla Excel</button>
                       <label className="btn btn-sm" style={{ cursor: "pointer" }}>
@@ -1611,20 +1678,30 @@ export default function EcoRadar() {
                     </div>
                   </div>
                   {mostrarFormPersona && (
-                    <div className="form-inline">
-                      <input type="text" placeholder="Nombre completo" value={nuevaPersona.nombre} onChange={e => setNuevaPersona({ ...nuevaPersona, nombre: e.target.value })} />
-                      <input type="text" placeholder="Código (ej. 002)" value={nuevaPersona.codigo} onChange={e => setNuevaPersona({ ...nuevaPersona, codigo: e.target.value })} style={{ width: 100, flex: "initial" }} />
-                      <input type="text" placeholder="Clave" value={nuevaPersona.clave} onChange={e => setNuevaPersona({ ...nuevaPersona, clave: e.target.value })} style={{ width: 110, flex: "initial" }} />
-                      <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value })}>
-                        <option>Diseñador</option><option>Redactor</option><option>Community Manager</option><option>Fotografía / Video</option><option>Analista de monitoreo</option><option>Encargado</option><option>Directora</option>
-                      </select>
-                      <select value={nuevaPersona.area} onChange={e => setNuevaPersona({ ...nuevaPersona, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
-                      <button className="btn btn-primario btn-sm" onClick={agregarPersona}>Guardar</button>
-                    </div>
+                    <>
+                      <div className="form-inline">
+                        <input type="text" placeholder="Nombre completo" value={nuevaPersona.nombre} onChange={e => setNuevaPersona({ ...nuevaPersona, nombre: e.target.value })} />
+                        <input type="text" placeholder="Código (ej. 002)" value={nuevaPersona.codigo} onChange={e => setNuevaPersona({ ...nuevaPersona, codigo: e.target.value })} style={{ width: 100, flex: "initial" }} />
+                        <input type="text" placeholder="Clave" value={nuevaPersona.clave} onChange={e => setNuevaPersona({ ...nuevaPersona, clave: e.target.value })} style={{ width: 110, flex: "initial" }} />
+                        <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value })}>{rolesDisponibles.map(r => <option key={r}>{r}</option>)}</select>
+                        <select value={nuevaPersona.modalidad} onChange={e => setNuevaPersona({ ...nuevaPersona, modalidad: e.target.value })}>{modalidadesDisponibles.map(m => <option key={m}>{m}</option>)}</select>
+                        <select value={nuevaPersona.jefeDirecto} onChange={e => setNuevaPersona({ ...nuevaPersona, jefeDirecto: e.target.value })}>
+                          <option value="">Sin jefe directo (nivel más alto)</option>
+                          {personasUnidad.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                        </select>
+                        <button className="btn btn-primario btn-sm" onClick={agregarPersona}>Guardar</button>
+                      </div>
+                      <div className="form-inline">
+                        <input type="text" placeholder="+ Agregar rol nuevo (ej. Editor de video)" value={nuevoRolTexto} onChange={e => setNuevoRolTexto(e.target.value)} />
+                        <button className="btn btn-sm" onClick={agregarRolNuevo}>Agregar rol</button>
+                        <input type="text" placeholder="+ Agregar modalidad nueva" value={nuevaModalidadTexto} onChange={e => setNuevaModalidadTexto(e.target.value)} />
+                        <button className="btn btn-sm" onClick={agregarModalidadNueva}>Agregar modalidad</button>
+                      </div>
+                    </>
                   )}
-                  <div className="aviso-simulado" style={{ marginTop: -6, marginBottom: 14 }}>La plantilla trae las columnas Nombre, Codigo, Clave, Rol, Area — llénala y súbela para agregar varias personas de una sola vez.</div>
+                  <div className="aviso-simulado" style={{ marginTop: -6, marginBottom: 14 }}>La plantilla trae las columnas Nombre, Codigo, Clave, Rol, Area, Modalidad, JefeDirecto — llénala y súbela para agregar varias personas de una sola vez a {unidadActual}. Los roles y modalidades que agregues quedan guardados para siempre, no se borran.</div>
 
-                  {personas.map(p => (
+                  {personasUnidad.map(p => (
                     <div className="ficha-card" key={p.id}>
                       <div className="ficha-cab">
                         <label className="ficha-avatar">
@@ -1634,7 +1711,7 @@ export default function EcoRadar() {
                         </label>
                         <div style={{ flex: 1 }}>
                           <div className="ficha-nombre">{p.nombre}</div>
-                          <div className="ficha-meta">{p.rol} · {p.area} · código <span className="etiqueta etq-baja">{p.codigo}</span></div>
+                          <div className="ficha-meta">{p.rol} · {p.modalidad || "sin modalidad"} · código <span className="etiqueta etq-baja">{p.codigo}</span>{p.jefeDirecto && <> · reporta a {p.jefeDirecto}</>}</div>
                         </div>
                         <button className="btn btn-sm" onClick={() => setFichaAbierta(fichaAbierta === p.id ? null : p.id)}>{fichaAbierta === p.id ? "Cerrar" : "Ver ficha"}</button>
                         {p.id !== usuarioActual?.id && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarPersona(p.id)} />}
@@ -1667,6 +1744,7 @@ export default function EcoRadar() {
                       )}
                     </div>
                   ))}
+                  {personasUnidad.length === 0 && <div className="campo-vacio">Aún no hay nadie en {unidadActual}.</div>}
                   <div className="aviso-simulado">Estos códigos y claves son de nivel prototipo (viven en el navegador) — funcionan para controlar el acceso del día a día, pero no son un sistema de autenticación seguro para datos sensibles.</div>
                 </div>
               </>
