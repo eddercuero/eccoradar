@@ -5,13 +5,15 @@ import {
   Facebook, Instagram, Music2, ChevronLeft, ChevronRight, Trophy,
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
-  Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound
+  Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, BarChart, Bar, Legend
 } from "recharts";
 import { jsPDF } from "jspdf";
+import * as XLSX from "xlsx";
 
 /* ---------- empresas ---------- */
 
@@ -29,6 +31,9 @@ const CLAVE_ASESOR = "asesor2026";
 const AREAS = ["Institucional", "Empresa Pública", "Patronato", "Bomberos", "Comunicación Externa", "Distribución", "ATL", "BTL", "2.0"];
 
 const TIPOS_ENTREGABLE = ["Foto", "Video", "Redacción", "Infografía", "Difusión", "Voz en off", "Diseño", "Otro"];
+
+const TIPOS_CUENTA = ["Propia", "Aliada", "Influencer a favor", "Atacante", "Influencer en contra"];
+const TIPOS_CUENTA_NEGATIVOS = ["Atacante", "Influencer en contra"];
 
 const TAREAS_SUGERIDAS = {
   "Institucional": ["Boletín de prensa institucional", "Cobertura fotográfica de evento", "Publicación institucional en redes"],
@@ -50,7 +55,7 @@ const NAV = [
   { id: "ranking", label: "Ranking", icon: Trophy },
   { id: "redes", label: "Monitoreo de redes", icon: Radio },
   { id: "calendario", label: "Calendario", icon: CalendarDays },
-  { id: "roles", label: "Equipo y accesos", icon: ShieldCheck },
+  { id: "roles", label: "RRHH", icon: UserCog },
 ];
 
 function accesoPorRol(rol) {
@@ -62,8 +67,8 @@ function accesoPorRol(rol) {
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
 
 const PERSONAS_SEED = [
-  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: "Directora", area: "Institucional" },
-  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional" },
+  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: "Directora", area: "Institucional", foto: "", horario: [], tareasFrecuentes: [] },
+  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional", foto: "", horario: [], tareasFrecuentes: [] },
 ];
 
 const VACIO = {
@@ -155,7 +160,7 @@ const TEMAS_ATACANTE = [
 ];
 
 function generarPublicaciones(cuenta) {
-  const temas = cuenta.tipo === "Propia" ? TEMAS_PROPIA : TEMAS_ATACANTE;
+  const temas = TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo) ? TEMAS_ATACANTE : TEMAS_PROPIA;
   const posts = [];
   for (let i = 0; i < 6; i++) {
     const seed = hashSeed(cuenta.id + "-" + i);
@@ -439,11 +444,12 @@ export default function EcoRadar() {
   const [filtroArea, setFiltroArea] = useState("Todas");
   const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
   const personasEquipo = personas.filter(p => p.rol !== "Directora" && p.rol !== "Asesor");
-  const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0] });
+  const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
   function agregarTarea() {
     if (!nuevaTarea.tarea.trim() || !nuevaTarea.responsable) return;
-    setTareas([{ id: Date.now(), tarea: nuevaTarea.tarea, responsable: nuevaTarea.responsable, prioridad: nuevaTarea.prioridad, estado: "Pendiente", vence: "Sin definir", area: nuevaTarea.area }, ...tareas]);
-    setNuevaTarea({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0] });
+    const vence = nuevaTarea.frecuencia === "Frecuente" ? `Cada ${nuevaTarea.dia}` : "Sin definir";
+    setTareas([{ id: Date.now(), tarea: nuevaTarea.tarea, responsable: nuevaTarea.responsable, prioridad: nuevaTarea.prioridad, estado: "Pendiente", vence, area: nuevaTarea.area, frecuencia: nuevaTarea.frecuencia, dia: nuevaTarea.dia }, ...tareas]);
+    setNuevaTarea({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
     setMostrarFormTarea(false);
   }
   function cambiarEstadoTarea(id) {
@@ -509,9 +515,10 @@ export default function EcoRadar() {
     setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, estado: "Analizando", sentimiento: 0, menciones: 0, revisado: "ahora" }, ...cuentas]);
     setLinkNuevo("");
     setTimeout(() => {
+      const esNegativa = TIPOS_CUENTA_NEGATIVOS.includes(tipoNuevaCuenta);
       setCuentas(prev => prev.map(c => c.id === idNueva ? {
-        ...c, estado: tipoNuevaCuenta === "Atacante" ? "Alerta" : "Activa",
-        sentimiento: tipoNuevaCuenta === "Atacante" ? 15 + Math.round(Math.random() * 20) : 60 + Math.round(Math.random() * 30),
+        ...c, estado: esNegativa ? "Alerta" : "Activa",
+        sentimiento: esNegativa ? 15 + Math.round(Math.random() * 20) : 60 + Math.round(Math.random() * 30),
         menciones: 10 + Math.round(Math.random() * 80), revisado: "hace instantes",
       } : c));
     }, 1600);
@@ -532,11 +539,76 @@ export default function EcoRadar() {
   const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: "Diseñador", area: AREAS[0] });
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
-    setPersonas([...personas, { id: Date.now(), ...nuevaPersona }]);
+    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, foto: "", horario: [], tareasFrecuentes: [] }]);
     setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: "Diseñador", area: AREAS[0] });
     setMostrarFormPersona(false);
   }
   function eliminarPersona(id) { setPersonas(personas.filter(p => p.id !== id)); }
+
+  const [fichaAbierta, setFichaAbierta] = useState(null);
+  const [formHorario, setFormHorario] = useState({});
+  const [formTareaFrec, setFormTareaFrec] = useState({});
+
+  function subirFoto(personaId, file) {
+    if (!file) return;
+    const lector = new FileReader();
+    lector.onload = () => setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, foto: lector.result } : p));
+    lector.readAsDataURL(file);
+  }
+  function agregarHorarioPersona(personaId) {
+    const f = formHorario[personaId] || { dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" };
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, horario: [...(p.horario || []), { id: Date.now(), ...f }] } : p));
+  }
+  function eliminarHorarioPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, horario: p.horario.filter(h => h.id !== itemId) }));
+  }
+  function agregarTareaFrecPersona(personaId) {
+    const f = formTareaFrec[personaId];
+    if (!f || !f.tarea || !f.tarea.trim()) return;
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, tareasFrecuentes: [...(p.tareasFrecuentes || []), { id: Date.now(), dia: f.dia || "Lunes", tarea: f.tarea }] } : p));
+    setFormTareaFrec({ ...formTareaFrec, [personaId]: { dia: "Lunes", tarea: "" } });
+  }
+  function eliminarTareaFrecPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.filter(t => t.id !== itemId) }));
+  }
+
+  function descargarPlantillaExcel() {
+    const filas = [
+      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional" },
+    ];
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Personas");
+    XLSX.writeFile(libro, "plantilla-eco-radar-personas.xlsx");
+  }
+  function manejarSubidaExcel(evento) {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const datos = new Uint8Array(e.target.result);
+      const libro = XLSX.read(datos, { type: "array" });
+      const hoja = libro.Sheets[libro.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja);
+      const nuevas = filas.filter(f => f.Nombre && f.Codigo).map((f, i) => ({
+        id: Date.now() + i,
+        nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
+        rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
+        foto: "", horario: [], tareasFrecuentes: [],
+      }));
+      if (nuevas.length) setPersonas(prev => [...prev, ...nuevas]);
+    };
+    lector.readAsArrayBuffer(archivo);
+    evento.target.value = "";
+  }
+
+  const nivelesOrganigrama = useMemo(() => {
+    const directoras = personas.filter(p => p.rol === "Directora");
+    const encargados = personas.filter(p => p.rol === "Encargado");
+    const resto = personas.filter(p => p.rol !== "Directora" && p.rol !== "Encargado");
+    return [directoras, encargados, resto].filter(nivel => nivel.length > 0);
+  }, [personas]);
+
 
   const diasDelMes = useMemo(() => {
     const year = 2026, month = 7;
@@ -931,6 +1003,28 @@ export default function EcoRadar() {
         .tv-ranking-pos.bronce { background: #3a2a1c; border-color: #a05a2c; color: #d68f56; }
         .tv-ranking-nombre { flex: 1; font-size: 20px; }
         .tv-ranking-pct { font-family: 'Newsreader', serif; font-size: 28px; color: #C61D2D; }
+
+        /* ---- RRHH: organigrama y fichas ---- */
+        .organigrama { display: flex; flex-direction: column; align-items: center; gap: 34px; padding: 10px 0; }
+        .organigrama-nivel { display: flex; gap: 24px; flex-wrap: wrap; justify-content: center; position: relative; }
+        .organigrama-nivel:not(:first-child)::before { content: ""; position: absolute; top: -18px; left: 50%; width: 1px; height: 18px; background: var(--border); }
+        .organigrama-caja { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 18px; text-align: center; min-width: 130px; }
+        .organigrama-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; overflow: hidden; font-size: 13px; font-weight: 600; color: var(--muted); }
+        .organigrama-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .organigrama-nombre { font-size: 12.5px; font-weight: 600; }
+        .organigrama-rol { font-size: 10.5px; color: var(--dim); }
+
+        .ficha-card { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 12px; overflow: hidden; }
+        .ficha-cab { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+        .ficha-avatar { position: relative; width: 42px; height: 42px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; color: var(--muted); cursor: pointer; overflow: hidden; flex-shrink: 0; }
+        .ficha-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .ficha-avatar-editar { position: absolute; bottom: -2px; right: -2px; width: 16px; height: 16px; border-radius: 50%; background: var(--rojo); display: flex; align-items: center; justify-content: center; }
+        .ficha-avatar-editar svg { width: 9px; height: 9px; color: #fff; }
+        .ficha-nombre { font-size: 13.5px; font-weight: 600; }
+        .ficha-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+        .ficha-detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
+        .ficha-subtitulo { font-size: 11.5px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+        .ficha-item-fila { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
       `}</style>
 
       {/* -------- flujo de acceso -------- */}
@@ -1089,10 +1183,10 @@ export default function EcoRadar() {
                   <div>
                     <div className="panel">
                       <div className="panel-titulo">Alertas de redes</div>
-                      {cuentas.filter(c => c.tipo === "Atacante").slice(0, 4).map(c => (
+                      {cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).slice(0, 4).map(c => (
                         <div className="alerta" key={c.id}><AlertTriangle /><div><div className="alerta-texto">Nueva actividad en <strong>{c.handle}</strong> ({c.plataforma})</div><div className="alerta-hora">Revisado {c.revisado}</div></div></div>
                       ))}
-                      {cuentas.filter(c => c.tipo === "Atacante").length === 0 && <div className="campo-vacio">Sin cuentas hostiles monitoreadas aún.</div>}
+                      {cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length === 0 && <div className="campo-vacio">Sin cuentas hostiles monitoreadas aún.</div>}
                     </div>
                     <div className="panel">
                       <div className="panel-titulo">Top 3 del ranking <span className="ver-mas" onClick={() => setModulo("ranking")} style={{ cursor: "pointer" }}>ver todo →</span></div>
@@ -1161,31 +1255,37 @@ export default function EcoRadar() {
                         {(TAREAS_SUGERIDAS[nuevaTarea.area] || []).map(s => <div key={s} className="chip-sugerencia" onClick={() => setNuevaTarea({ ...nuevaTarea, tarea: s })}>{s}</div>)}
                       </div>
                       <div className="form-inline">
-                        <input type="text" placeholder="Descripción de la tarea" value={nuevaTarea.tarea} onChange={e => setNuevaTarea({ ...nuevaTarea, tarea: e.target.value })} />
+                        <input type="text" placeholder="Descripción de la tarea (ej. 3 videos, 1 video para la cumbre de jóvenes)" value={nuevaTarea.tarea} onChange={e => setNuevaTarea({ ...nuevaTarea, tarea: e.target.value })} />
                         <select value={nuevaTarea.responsable} onChange={e => setNuevaTarea({ ...nuevaTarea, responsable: e.target.value })}>
                           <option value="">Responsable…</option>
                           {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
                         </select>
                         <select value={nuevaTarea.area} onChange={e => setNuevaTarea({ ...nuevaTarea, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
                         <select value={nuevaTarea.prioridad} onChange={e => setNuevaTarea({ ...nuevaTarea, prioridad: e.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select>
+                        <select value={nuevaTarea.frecuencia} onChange={e => setNuevaTarea({ ...nuevaTarea, frecuencia: e.target.value })}><option>Específica</option><option>Frecuente</option></select>
+                        {nuevaTarea.frecuencia === "Frecuente" && (
+                          <select value={nuevaTarea.dia} onChange={e => setNuevaTarea({ ...nuevaTarea, dia: e.target.value })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
+                        )}
                         <button className="btn btn-primario btn-sm" onClick={agregarTarea}>Guardar</button>
                       </div>
+                      <div className="aviso-simulado" style={{ marginTop: -10 }}>"Específica" es algo puntual de hoy (ej. 1 video para la cumbre de jóvenes). "Frecuente" se repite cada semana el día que elijas (ej. cada Lunes 3 videos).</div>
                     </>
                   )}
                   <table className="tabla">
-                    <thead><tr><th></th><th>Tarea</th><th>Área</th>{esAdmin && <th>Responsable</th>}<th>Estado</th>{esAdmin && <th></th>}</tr></thead>
+                    <thead><tr><th></th><th>Tarea</th><th>Área</th><th>Frecuencia</th>{esAdmin && <th>Responsable</th>}<th>Estado</th>{esAdmin && <th></th>}</tr></thead>
                     <tbody>
                       {tareasVisibles.filter(t => filtroArea === "Todas" || t.area === filtroArea).map(t => (
                         <tr key={t.id}>
                           <td><span className={"semaforo-punto " + semaforoPrioridad(t.prioridad)} title={"Prioridad " + t.prioridad} /></td>
                           <td>{t.tarea}</td>
                           <td><span className="etiqueta etq-baja">{t.area}</span></td>
+                          <td>{t.frecuencia === "Frecuente" ? <span className="etiqueta etq-progreso"><Repeat style={{ width: 10, height: 10 }} /> Cada {t.dia}</span> : <span className="etiqueta etq-baja">Específica · hoy</span>}</td>
                           {esAdmin && <td>{t.responsable}</td>}
                           <td><span className={"etiqueta fila-clic " + (t.estado === "Completado" ? "etq-completado" : t.estado === "En progreso" ? "etq-progreso" : "etq-pendiente")} onClick={() => cambiarEstadoTarea(t.id)} title="Clic para cambiar de estado">{t.estado}</span></td>
                           {esAdmin && <td><Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarTarea(t.id)} /></td>}
                         </tr>
                       ))}
-                      {tareasVisibles.filter(t => filtroArea === "Todas" || t.area === filtroArea).length === 0 && <tr><td colSpan={6} className="campo-vacio">No hay tareas aquí todavía.</td></tr>}
+                      {tareasVisibles.filter(t => filtroArea === "Todas" || t.area === filtroArea).length === 0 && <tr><td colSpan={7} className="campo-vacio">No hay tareas aquí todavía.</td></tr>}
                     </tbody>
                   </table>
                 </div>
@@ -1341,53 +1441,74 @@ export default function EcoRadar() {
                   <div className="panel-titulo">Agregar cuenta a monitorear</div>
                   <div className="form-inline">
                     <input type="text" placeholder="Pega el link del perfil (X, Facebook, Instagram, TikTok)" value={linkNuevo} onChange={e => setLinkNuevo(e.target.value)} />
-                    <select value={tipoNuevaCuenta} onChange={e => setTipoNuevaCuenta(e.target.value)}><option value="Propia">Cuenta propia</option><option value="Atacante">Cuenta que ataca</option></select>
+                    <select value={tipoNuevaCuenta} onChange={e => setTipoNuevaCuenta(e.target.value)}>
+                      <option value="Propia">Cuenta propia</option>
+                      <option value="Aliada">Cuenta aliada</option>
+                      <option value="Influencer a favor">Influencer a favor</option>
+                      <option value="Atacante">Cuenta que ataca</option>
+                      <option value="Influencer en contra">Influencer en contra</option>
+                    </select>
                     <button className="btn btn-primario" onClick={agregarCuenta}><Link2 /> Analizar y monitorear</button>
                   </div>
                   <div className="aviso-simulado">Prototipo con datos de ejemplo — para leer cuentas reales cada día hace falta conectar esto a las APIs de cada red social.</div>
                 </div>
+
+                <div className="kpis" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
+                  {TIPOS_CUENTA.map(t => (
+                    <div className={"kpi " + (TIPOS_CUENTA_NEGATIVOS.includes(t) ? "acento-rojo" : "acento-exito")} key={t}>
+                      <div className="kpi-valor">{cuentas.filter(c => c.tipo === t).length}</div>
+                      <div className="kpi-label">{t}</div>
+                    </div>
+                  ))}
+                </div>
+
                 <div className="grid-dos">
                   <div>
-                    <div className="panel">
-                      <div className="panel-titulo">Cuentas propias</div>
-                      {cuentas.filter(c => c.tipo === "Propia").map(c => {
-                        const Icono = PLATAFORMA_ICONO[c.plataforma];
-                        return (
-                          <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
-                            <div className="icono-plat"><Icono /></div>
-                            <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
-                            <div className="cuenta-metricas">
-                              <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                              <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                              <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-completado")}>{c.estado}</span>
-                              <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
+                    {["Propia", "Aliada", "Influencer a favor"].map(tipo => (
+                      <div className="panel" key={tipo}>
+                        <div className="panel-titulo">{tipo === "Propia" ? "Cuentas propias" : tipo === "Aliada" ? "Cuentas aliadas" : "Influencers a favor"}</div>
+                        {cuentas.filter(c => c.tipo === tipo).map(c => {
+                          const Icono = PLATAFORMA_ICONO[c.plataforma];
+                          return (
+                            <div className="tarjeta-cuenta fila-clic" key={c.id} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
+                              <div className="icono-plat"><Icono /></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
+                              <div className="cuenta-metricas">
+                                <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
+                                <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
+                                <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-completado")}>{c.estado}</span>
+                                <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                      {cuentas.filter(c => c.tipo === "Propia").length === 0 && <div className="campo-vacio">Sin cuentas propias monitoreadas.</div>}
-                    </div>
-                    <div className="panel">
-                      <div className="panel-titulo">Cuentas que nos atacan</div>
-                      {cuentas.filter(c => c.tipo === "Atacante").map(c => {
-                        const Icono = PLATAFORMA_ICONO[c.plataforma];
-                        return (
-                          <div className="tarjeta-cuenta fila-clic" key={c.id} style={{ borderColor: c.estado === "Crítica" ? "rgba(198,29,45,0.4)" : "var(--border)" }} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
-                            <div className="icono-plat"><Icono /></div>
-                            <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
-                            <div className="cuenta-metricas">
-                              <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
-                              <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
-                              <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-cuenta-atacante")}>{c.estado}</span>
-                              <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {cuentas.filter(c => c.tipo === "Atacante").length === 0 && <div className="campo-vacio">Sin cuentas hostiles monitoreadas.</div>}
-                    </div>
+                          );
+                        })}
+                        {cuentas.filter(c => c.tipo === tipo).length === 0 && <div className="campo-vacio">Sin cuentas en esta categoría.</div>}
+                      </div>
+                    ))}
                   </div>
+
                   <div>
+                    {["Atacante", "Influencer en contra"].map(tipo => (
+                      <div className="panel" key={tipo}>
+                        <div className="panel-titulo">{tipo === "Atacante" ? "Cuentas que nos atacan" : "Influencers en contra"}</div>
+                        {cuentas.filter(c => c.tipo === tipo).map(c => {
+                          const Icono = PLATAFORMA_ICONO[c.plataforma];
+                          return (
+                            <div className="tarjeta-cuenta fila-clic" key={c.id} style={{ borderColor: c.estado === "Crítica" ? "rgba(198,29,45,0.4)" : "var(--border)" }} onClick={() => c.estado !== "Analizando" && setCuentaAbierta(c.id)}>
+                              <div className="icono-plat"><Icono /></div>
+                              <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · revisado {c.revisado}</div></div>
+                              <div className="cuenta-metricas">
+                                <div className="cuenta-metrica"><div className={"valor " + claseSentimiento(c.sentimiento)}>{c.estado === "Analizando" ? "…" : c.sentimiento}</div><div className="etiqueta-metrica">sentimiento</div></div>
+                                <div className="cuenta-metrica"><div className="valor">{c.estado === "Analizando" ? "…" : c.menciones}</div><div className="etiqueta-metrica">menciones</div></div>
+                                <span className={"etiqueta " + (c.estado === "Analizando" ? "etq-media" : "etq-cuenta-atacante")}>{c.estado}</span>
+                                <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {cuentas.filter(c => c.tipo === tipo).length === 0 && <div className="campo-vacio">Sin cuentas en esta categoría.</div>}
+                      </div>
+                    ))}
                     <div className="panel">
                       <div className="panel-titulo">Cobertura de redes cargadas</div>
                       {cobertura.map(c => { const Icono = COBERTURA_ICONO[c.icono]; return (<div className="cobertura-fila" key={c.id}><div className="cobertura-icono"><Icono /></div><div className="cobertura-nombre">{c.red}</div><div className={"switch" + (c.cargada ? " on" : "")} onClick={() => alternarCobertura(c.id)}><div className="bolita" /></div></div>); })}
@@ -1460,9 +1581,34 @@ export default function EcoRadar() {
             {modulo === "roles" && esAdmin && (
               <>
                 <div className="panel">
+                  <div className="panel-titulo">Organigrama</div>
+                  <div className="organigrama">
+                    {nivelesOrganigrama.map((nivel, i) => (
+                      <div className="organigrama-nivel" key={i}>
+                        {nivel.map(p => (
+                          <div className="organigrama-caja" key={p.id}>
+                            <div className="organigrama-avatar">{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
+                            <div className="organigrama-nombre">{p.nombre}</div>
+                            <div className="organigrama-rol">{p.rol}</div>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    {personas.length === 0 && <div className="campo-vacio">Agrega personas para ver el organigrama.</div>}
+                  </div>
+                </div>
+
+                <div className="panel">
                   <div className="panel-titulo">
-                    Personas con acceso
-                    <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormPersona(!mostrarFormPersona)}><Plus /> Agregar persona</button>
+                    Fichas del equipo
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="btn btn-sm" onClick={descargarPlantillaExcel}><Download /> Descargar plantilla Excel</button>
+                      <label className="btn btn-sm" style={{ cursor: "pointer" }}>
+                        <Upload /> Subir Excel
+                        <input type="file" accept=".xlsx,.xls" onChange={manejarSubidaExcel} style={{ display: "none" }} />
+                      </label>
+                      <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormPersona(!mostrarFormPersona)}><Plus /> Agregar persona</button>
+                    </div>
                   </div>
                   {mostrarFormPersona && (
                     <div className="form-inline">
@@ -1476,20 +1622,51 @@ export default function EcoRadar() {
                       <button className="btn btn-primario btn-sm" onClick={agregarPersona}>Guardar</button>
                     </div>
                   )}
-                  <table className="tabla">
-                    <thead><tr><th>Nombre</th><th>Código</th><th>Rol</th><th>Área</th><th></th></tr></thead>
-                    <tbody>
-                      {personas.map(p => (
-                        <tr key={p.id}>
-                          <td>{p.nombre}</td>
-                          <td><span className="etiqueta etq-baja">{p.codigo}</span></td>
-                          <td>{p.rol}</td>
-                          <td>{p.area}</td>
-                          <td>{p.id !== usuarioActual?.id && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarPersona(p.id)} />}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div className="aviso-simulado" style={{ marginTop: -6, marginBottom: 14 }}>La plantilla trae las columnas Nombre, Codigo, Clave, Rol, Area — llénala y súbela para agregar varias personas de una sola vez.</div>
+
+                  {personas.map(p => (
+                    <div className="ficha-card" key={p.id}>
+                      <div className="ficha-cab">
+                        <label className="ficha-avatar">
+                          {p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}
+                          <div className="ficha-avatar-editar"><Camera /></div>
+                          <input type="file" accept="image/*" style={{ display: "none" }} onChange={e => subirFoto(p.id, e.target.files[0])} />
+                        </label>
+                        <div style={{ flex: 1 }}>
+                          <div className="ficha-nombre">{p.nombre}</div>
+                          <div className="ficha-meta">{p.rol} · {p.area} · código <span className="etiqueta etq-baja">{p.codigo}</span></div>
+                        </div>
+                        <button className="btn btn-sm" onClick={() => setFichaAbierta(fichaAbierta === p.id ? null : p.id)}>{fichaAbierta === p.id ? "Cerrar" : "Ver ficha"}</button>
+                        {p.id !== usuarioActual?.id && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarPersona(p.id)} />}
+                      </div>
+
+                      {fichaAbierta === p.id && (
+                        <div className="ficha-detalle">
+                          <div className="ficha-columna">
+                            <div className="ficha-subtitulo"><CalendarClock style={{ width: 13, height: 13 }} /> Horario frecuente</div>
+                            {(p.horario || []).map(h => (<div className="ficha-item-fila" key={h.id}><span>{h.dia}: {h.horaInicio} – {h.horaFin}</span><Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarHorarioPersona(p.id, h.id)} /></div>))}
+                            {(p.horario || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin horario definido.</div>}
+                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 0 }}>
+                              <select value={(formHorario[p.id] || {}).dia || "Lunes"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), dia: e.target.value } })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
+                              <input type="time" value={(formHorario[p.id] || {}).horaInicio || "08:00"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), horaInicio: e.target.value } })} />
+                              <input type="time" value={(formHorario[p.id] || {}).horaFin || "16:00"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), horaFin: e.target.value } })} />
+                              <button className="btn btn-sm" onClick={() => agregarHorarioPersona(p.id)}><Plus /></button>
+                            </div>
+                          </div>
+                          <div className="ficha-columna">
+                            <div className="ficha-subtitulo"><Repeat style={{ width: 13, height: 13 }} /> Tareas frecuentes (rutina semanal)</div>
+                            {(p.tareasFrecuentes || []).map(t => (<div className="ficha-item-fila" key={t.id}><span>{t.dia}: {t.tarea}</span><Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarTareaFrecPersona(p.id, t.id)} /></div>))}
+                            {(p.tareasFrecuentes || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin tareas frecuentes registradas.</div>}
+                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 0 }}>
+                              <select value={(formTareaFrec[p.id] || {}).dia || "Lunes"} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), dia: e.target.value } })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
+                              <input type="text" placeholder="Ej. 3 videos" value={(formTareaFrec[p.id] || {}).tarea || ""} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), tarea: e.target.value } })} />
+                              <button className="btn btn-sm" onClick={() => agregarTareaFrecPersona(p.id)}><Plus /></button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
                   <div className="aviso-simulado">Estos códigos y claves son de nivel prototipo (viven en el navegador) — funcionan para controlar el acceso del día a día, pero no son un sistema de autenticación seguro para datos sensibles.</div>
                 </div>
               </>
@@ -1507,7 +1684,7 @@ export default function EcoRadar() {
           <div className="modal-overlay" onClick={() => setCuentaAbierta(null)}>
             <div className="modal-feed" onClick={e => e.stopPropagation()}>
               <div className="modal-feed-header">
-                <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Icono /></div><div><div className="modal-feed-nombre">{c.handle}</div><div className="modal-feed-sub">{c.plataforma} · {c.tipo === "Propia" ? "cuenta propia" : "cuenta que ataca"}</div></div></div>
+                <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Icono /></div><div><div className="modal-feed-nombre">{c.handle}</div><div className="modal-feed-sub">{c.plataforma} · {c.tipo}</div></div></div>
                 <IconCerrar className="modal-feed-cerrar" onClick={() => setCuentaAbierta(null)} />
               </div>
               <div className={"modal-feed-body plat-" + c.plataforma.replace(/[^a-zA-Z]/g, "").toLowerCase()}>
