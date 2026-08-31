@@ -63,8 +63,8 @@ const ROLES_SEED = [ROL_DIRECTORA, "Diseñador", "Redactor", "Community Manager"
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
 const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
 
-function accesoPorRol(rol) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor") return ["resumen", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
+function accesoPorRol(rol, forzarAdmin) {
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["resumen", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
   if (rol === "Encargado") return ["resumen", "equipo", "metas", "proyectos", "ranking", "calendario"];
   return ["equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
 }
@@ -359,8 +359,9 @@ export default function EcoRadar() {
 
   const usuarioActual = sesion?.tipo === "usuario" ? personas.find(p => p.id === sesion.usuarioId) : null;
   const rolActual = sesion?.tipo === "asesor" ? "Asesor" : (usuarioActual ? usuarioActual.rol : null);
-  const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor";
-  const accesoPermitido = rolActual ? accesoPorRol(rolActual) : [];
+  const esCodigoDirectora = usuarioActual?.codigo === "directora";
+  const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor" || esCodigoDirectora;
+  const accesoPermitido = rolActual ? accesoPorRol(rolActual, esCodigoDirectora) : [];
 
   useEffect(() => { if (rolActual && !accesoPermitido.includes(modulo)) setModulo(accesoPermitido[0]); /* eslint-disable-next-line */ }, [rolActual]);
 
