@@ -212,6 +212,16 @@ function VisorEnVivo({ cuenta }) {
 
 const CALIFICACIONES_PROPIA = ["Normal", "Bajo ataque en comentarios", "Comentarios controlados", "Necesita respuesta", "Viral positivo"];
 const CALIFICACIONES_NEGATIVA = ["Nos ataca directamente", "Comparte noticias de otros", "Postura imparcial", "Sin actividad relevante", "Escalando"];
+const COLOR_CALIFICACION = {
+  "Normal": "verde", "Comentarios controlados": "verde", "Viral positivo": "verde", "Postura imparcial": "verde", "Sin actividad relevante": "verde",
+  "Necesita respuesta": "amarillo", "Comparte noticias de otros": "amarillo",
+  "Bajo ataque en comentarios": "rojo", "Nos ataca directamente": "rojo", "Escalando": "rojo",
+};
+function colorCalificacion(c) { return COLOR_CALIFICACION[c] || "amarillo"; }
+function etiquetaClaseCalificacion(c) {
+  const color = colorCalificacion(c);
+  return color === "rojo" ? "etq-alta" : color === "amarillo" ? "etq-media" : "etq-completado";
+}
 
 function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) {
   const Icono = icono;
@@ -243,7 +253,7 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
             <div className="registro-panel">
               <div className="registro-form">
                 <div className="chips">
-                  {opciones.map(o => <div key={o} className={"chip" + (calificacion === o ? " activo" : "")} onClick={() => setCalificacion(o)}>{o}</div>)}
+                  {opciones.map(o => <div key={o} className={"chip chip-" + colorCalificacion(o) + (calificacion === o ? " activo" : "")} onClick={() => setCalificacion(o)}>{o}</div>)}
                 </div>
                 <div className="form-inline" style={{ marginBottom: 8 }}>
                   <input type="text" placeholder="Nota opcional (ej. respondimos el comentario de las 10am)" value={nota} onChange={e => setNota(e.target.value)} />
@@ -253,9 +263,9 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
               <div className="registro-lista">
                 {registros.length === 0 && <div className="campo-vacio">Sin registros todavía. Cada vez que revises esta cuenta, deja aquí una calificación.</div>}
                 {[...registros].reverse().map(r => (
-                  <div className="registro-item" key={r.id}>
+                  <div className={"registro-item registro-" + colorCalificacion(r.calificacion)} key={r.id}>
                     <div className="registro-item-cab">
-                      <span className={"etiqueta " + (CALIFICACIONES_NEGATIVA.includes(r.calificacion) && r.calificacion !== "Postura imparcial" && r.calificacion !== "Sin actividad relevante" ? "etq-alta" : "etq-completado")}>{r.calificacion}</span>
+                      <span className={"etiqueta " + etiquetaClaseCalificacion(r.calificacion)}>{r.calificacion}</span>
                       <span className="registro-fecha">{r.fecha} · {r.registradoPor}</span>
                     </div>
                     {r.nota && <div className="registro-nota">{r.nota}</div>}
@@ -731,10 +741,10 @@ export default function EcoRadar() {
         .app {
           --bg: #F1F2F4; --bg-alt: #FFFFFF; --surface: #FFFFFF; --surface-2: #F5F6F8;
           --border: #E3E5E9; --border-strong: rgba(198,29,45,0.35);
-          --rojo: #C61D2D; --rojo-soft: rgba(198,29,45,0.09);
+          --rojo: #C61D2D; --rojo-soft: rgba(198,29,45,0.16);
           --plomo: #6B7280; --plomo-oscuro: #33383F;
-          --steel: #3A6EA5; --success: #1E8E4F; --success-soft: rgba(30,142,79,0.10);
-          --warning: #C17E00; --warning-soft: rgba(193,126,0,0.10);
+          --steel: #3A6EA5; --steel-soft: rgba(58,110,165,0.14); --success: #1E8E4F; --success-soft: rgba(30,142,79,0.18);
+          --warning: #C17E00; --warning-soft: rgba(193,126,0,0.18);
           --danger: var(--rojo); --danger-soft: var(--rojo-soft);
           --text: #1C1F24; --muted: #6B7280; --dim: #9AA1AC;
           font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text);
@@ -809,10 +819,14 @@ export default function EcoRadar() {
         .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; }
         .kpi-valor { font-family: 'Newsreader', serif; font-size: 32px; line-height: 1; }
         .kpi-label { color: var(--muted); font-size: 12px; margin-top: 8px; }
-        .kpi.acento-rojo { border-top: 2px solid var(--rojo); }
-        .kpi.acento-exito { border-top: 2px solid var(--success); }
-        .kpi.acento-acero { border-top: 2px solid var(--steel); }
-        .kpi.acento-plomo { border-top: 2px solid var(--plomo); }
+        .kpi.acento-rojo { background: var(--rojo-soft); border-color: rgba(198,29,45,0.3); }
+        .kpi.acento-rojo .kpi-valor { color: var(--rojo); }
+        .kpi.acento-exito { background: var(--success-soft); border-color: rgba(30,142,79,0.3); }
+        .kpi.acento-exito .kpi-valor { color: var(--success); }
+        .kpi.acento-acero { background: var(--steel-soft); border-color: rgba(58,110,165,0.3); }
+        .kpi.acento-acero .kpi-valor { color: var(--steel); }
+        .kpi.acento-plomo { background: var(--warning-soft); border-color: rgba(193,126,0,0.3); }
+        .kpi.acento-plomo .kpi-valor { color: var(--warning); }
 
         .grid-dos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
         .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
@@ -849,7 +863,7 @@ export default function EcoRadar() {
         table.tabla th { text-align: left; color: var(--dim); font-weight: 500; font-size: 11px; letter-spacing: 0.3px; padding: 0 10px 8px; border-bottom: 1px solid var(--border); }
         table.tabla td { padding: 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
         table.tabla tr:last-child td { border-bottom: none; }
-        .etiqueta { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+        .etiqueta { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
         .etq-alta { background: var(--rojo-soft); color: var(--rojo); }
         .etq-media { background: var(--warning-soft); color: var(--warning); }
         .etq-baja { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
@@ -876,6 +890,12 @@ export default function EcoRadar() {
         .chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
         .chip { padding: 5px 12px; border-radius: 20px; font-size: 11.5px; border: 1px solid var(--border); color: var(--muted); cursor: pointer; background: var(--surface); }
         .chip.activo { background: var(--rojo-soft); border-color: var(--border-strong); color: var(--rojo); }
+        .chip.chip-verde { border-color: rgba(30,142,79,0.3); }
+        .chip.chip-verde.activo { background: var(--success-soft); border-color: var(--success); color: var(--success); }
+        .chip.chip-amarillo { border-color: rgba(193,126,0,0.3); }
+        .chip.chip-amarillo.activo { background: var(--warning-soft); border-color: var(--warning); color: var(--warning); }
+        .chip.chip-rojo { border-color: rgba(198,29,45,0.3); }
+        .chip.chip-rojo.activo { background: var(--rojo-soft); border-color: var(--rojo); color: var(--rojo); }
         .chip-sugerencia { padding: 5px 11px; border-radius: 20px; font-size: 11px; border: 1px dashed var(--border); color: var(--muted); cursor: pointer; background: var(--surface-2); }
         .chip-sugerencia:hover { border-color: var(--border-strong); color: var(--rojo); }
 
@@ -1106,7 +1126,10 @@ export default function EcoRadar() {
         .registro-panel { padding: 16px; }
         .registro-form { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 14px; }
         .registro-lista { display: flex; flex-direction: column; gap: 10px; }
-        .registro-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+        .registro-item { background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+        .registro-item.registro-verde { border-left-color: var(--success); background: var(--success-soft); }
+        .registro-item.registro-amarillo { border-left-color: var(--warning); background: var(--warning-soft); }
+        .registro-item.registro-rojo { border-left-color: var(--rojo); background: var(--rojo-soft); }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1244,9 +1267,9 @@ export default function EcoRadar() {
               <>
                 <div className="kpis">
                   <div className="kpi acento-exito"><div className="kpi-valor">{tareasCompletadasHoy}/{tareasVisibles.length}</div><div className="kpi-label">Tareas completadas hoy</div></div>
-                  <div className="kpi acento-rojo"><div className="kpi-valor">{rankingOrdenado.length ? cumplimiento(rankingOrdenado[0]) : 0}%</div><div className="kpi-label">Mejor cumplimiento del equipo</div></div>
+                  <div className="kpi acento-exito"><div className="kpi-valor">{rankingOrdenado.length ? cumplimiento(rankingOrdenado[0]) : 0}%</div><div className="kpi-label">Mejor cumplimiento del equipo</div></div>
                   <div className="kpi acento-acero"><div className="kpi-valor">{proyectosVisibles.length}</div><div className="kpi-label">Proyectos activos</div></div>
-                  <div className="kpi acento-plomo"><div className="kpi-valor">{cuentasEnAlerta}</div><div className="kpi-label">Cuentas hostiles monitoreadas</div></div>
+                  <div className="kpi acento-rojo"><div className="kpi-valor">{cuentasEnAlerta}</div><div className="kpi-label">Cuentas hostiles monitoreadas</div></div>
                 </div>
                 <div className="grid-dos">
                   <div>
@@ -1560,7 +1583,7 @@ export default function EcoRadar() {
                               <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
                                 {c.registros && c.registros.length > 0
-                                  ? <span className="etiqueta etq-baja">{c.registros[c.registros.length - 1].calificacion}</span>
+                                  ? <span className={"etiqueta " + etiquetaClaseCalificacion(c.registros[c.registros.length - 1].calificacion)}>{c.registros[c.registros.length - 1].calificacion}</span>
                                   : <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>}
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
@@ -1584,7 +1607,7 @@ export default function EcoRadar() {
                               <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
                                 {c.registros && c.registros.length > 0
-                                  ? <span className="etiqueta etq-baja">{c.registros[c.registros.length - 1].calificacion}</span>
+                                  ? <span className={"etiqueta " + etiquetaClaseCalificacion(c.registros[c.registros.length - 1].calificacion)}>{c.registros[c.registros.length - 1].calificacion}</span>
                                   : <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>}
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
