@@ -210,6 +210,69 @@ function VisorEnVivo({ cuenta }) {
   return <VisorEnlaceReal cuenta={cuenta} />;
 }
 
+const CALIFICACIONES_PROPIA = ["Normal", "Bajo ataque en comentarios", "Comentarios controlados", "Necesita respuesta", "Viral positivo"];
+const CALIFICACIONES_NEGATIVA = ["Nos ataca directamente", "Comparte noticias de otros", "Postura imparcial", "Sin actividad relevante", "Escalando"];
+
+function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) {
+  const Icono = icono;
+  const [pestana, setPestana] = useState("vivo");
+  const opciones = TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo) ? CALIFICACIONES_NEGATIVA : CALIFICACIONES_PROPIA;
+  const [calificacion, setCalificacion] = useState(opciones[0]);
+  const [nota, setNota] = useState("");
+  const registros = cuenta.registros || [];
+
+  function registrar() {
+    onRegistrar(cuenta.id, calificacion, nota);
+    setNota("");
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-feed" onClick={e => e.stopPropagation()}>
+        <div className="modal-feed-header">
+          <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Icono /></div><div><div className="modal-feed-nombre">{cuenta.handle}</div><div className="modal-feed-sub">{cuenta.plataforma} · {cuenta.tipo}</div></div></div>
+          <IconCerrar className="modal-feed-cerrar" onClick={onClose} />
+        </div>
+        <div className="modal-tabs">
+          <div className={"modal-tab" + (pestana === "vivo" ? " activo" : "")} onClick={() => setPestana("vivo")}>Ver en vivo</div>
+          <div className={"modal-tab" + (pestana === "registro" ? " activo" : "")} onClick={() => setPestana("registro")}>Registro de monitoreo {registros.length > 0 && `(${registros.length})`}</div>
+        </div>
+        <div className="modal-feed-body">
+          {pestana === "vivo" && <VisorEnVivo cuenta={cuenta} />}
+          {pestana === "registro" && (
+            <div className="registro-panel">
+              <div className="registro-form">
+                <div className="chips">
+                  {opciones.map(o => <div key={o} className={"chip" + (calificacion === o ? " activo" : "")} onClick={() => setCalificacion(o)}>{o}</div>)}
+                </div>
+                <div className="form-inline" style={{ marginBottom: 8 }}>
+                  <input type="text" placeholder="Nota opcional (ej. respondimos el comentario de las 10am)" value={nota} onChange={e => setNota(e.target.value)} />
+                  <button className="btn btn-primario btn-sm" onClick={registrar}><Plus /> Registrar ahora</button>
+                </div>
+              </div>
+              <div className="registro-lista">
+                {registros.length === 0 && <div className="campo-vacio">Sin registros todavía. Cada vez que revises esta cuenta, deja aquí una calificación.</div>}
+                {[...registros].reverse().map(r => (
+                  <div className="registro-item" key={r.id}>
+                    <div className="registro-item-cab">
+                      <span className={"etiqueta " + (CALIFICACIONES_NEGATIVA.includes(r.calificacion) && r.calificacion !== "Postura imparcial" && r.calificacion !== "Sin actividad relevante" ? "etq-alta" : "etq-completado")}>{r.calificacion}</span>
+                      <span className="registro-fecha">{r.fecha} · {r.registradoPor}</span>
+                    </div>
+                    {r.nota && <div className="registro-nota">{r.nota}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        <div className="modal-feed-footer-acciones">
+          <Trash2 style={{ width: 13, height: 13, color: "var(--dim)", cursor: "pointer" }} onClick={() => { onEliminar(cuenta.id); onClose(); }} /> Eliminar esta cuenta del monitoreo
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ---------- modo TV (pantalla tipo aeropuerto) ---------- */
 
 function ModoTV({ personas, tareas, metas, onSalir }) {
@@ -485,10 +548,14 @@ export default function EcoRadar() {
     const idNueva = Date.now();
     let url = linkNuevo.trim();
     if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, link: url, estado: "En vivo" }, ...cuentas]);
+    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, link: url, estado: "En vivo", registros: [] }, ...cuentas]);
     setLinkNuevo("");
   }
   function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
+  function agregarRegistroCuenta(cuentaId, calificacion, nota) {
+    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), calificacion, nota, registradoPor: nombreVisible };
+    setCuentas(prev => prev.map(c => c.id === cuentaId ? { ...c, registros: [...(c.registros || []), nuevo] } : c));
+  }
   function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
   const [nuevoWeb, setNuevoWeb] = useState({ tipo: "Palabra clave Google", texto: "" });
   function agregarWeb() {
@@ -1031,6 +1098,18 @@ export default function EcoRadar() {
         .visor-en-vivo { display: flex; flex-direction: column; }
         .visor-en-vivo iframe { display: block; }
         .visor-nota { font-size: 10.5px; color: var(--dim); font-style: italic; padding: 10px 14px; border-top: 1px solid var(--border); }
+
+        .modal-tabs { display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .modal-tab { flex: 1; text-align: center; padding: 10px; font-size: 12px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+        .modal-tab.activo { color: var(--rojo); border-bottom-color: var(--rojo); font-weight: 600; }
+        .modal-feed-footer-acciones { display: flex; align-items: center; gap: 6px; padding: 9px 14px; border-top: 1px solid var(--border); font-size: 11px; color: var(--dim); cursor: pointer; flex-shrink: 0; }
+        .registro-panel { padding: 16px; }
+        .registro-form { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 14px; }
+        .registro-lista { display: flex; flex-direction: column; gap: 10px; }
+        .registro-item { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; }
+        .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+        .registro-fecha { font-size: 10.5px; color: var(--dim); }
+        .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
       `}</style>
 
       {/* -------- flujo de acceso -------- */}
@@ -1480,7 +1559,9 @@ export default function EcoRadar() {
                               <div className="icono-plat"><Icono /></div>
                               <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
-                                <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>
+                                {c.registros && c.registros.length > 0
+                                  ? <span className="etiqueta etq-baja">{c.registros[c.registros.length - 1].calificacion}</span>
+                                  : <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>}
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1502,7 +1583,9 @@ export default function EcoRadar() {
                               <div className="icono-plat"><Icono /></div>
                               <div><div className="cuenta-handle">{c.handle}</div><div className="cuenta-meta">{c.plataforma} · clic para ver en vivo</div></div>
                               <div className="cuenta-metricas">
-                                <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>
+                                {c.registros && c.registros.length > 0
+                                  ? <span className="etiqueta etq-baja">{c.registros[c.registros.length - 1].calificacion}</span>
+                                  : <span className="etiqueta etq-completado"><Radio style={{ width: 10, height: 10 }} /> En vivo</span>}
                                 <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); eliminarCuenta(c.id); }} />
                               </div>
                             </div>
@@ -1693,20 +1776,7 @@ export default function EcoRadar() {
       {cuentaAbierta && (() => {
         const c = cuentas.find(x => x.id === cuentaAbierta);
         if (!c) return null;
-        const Icono = PLATAFORMA_ICONO[c.plataforma];
-        return (
-          <div className="modal-overlay" onClick={() => setCuentaAbierta(null)}>
-            <div className="modal-feed" onClick={e => e.stopPropagation()}>
-              <div className="modal-feed-header">
-                <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Icono /></div><div><div className="modal-feed-nombre">{c.handle}</div><div className="modal-feed-sub">{c.plataforma} · {c.tipo}</div></div></div>
-                <IconCerrar className="modal-feed-cerrar" onClick={() => setCuentaAbierta(null)} />
-              </div>
-              <div className="modal-feed-body">
-                <VisorEnVivo cuenta={c} />
-              </div>
-            </div>
-          </div>
-        );
+        return <ModalPerfilCuenta cuenta={c} icono={PLATAFORMA_ICONO[c.plataforma]} onClose={() => setCuentaAbierta(null)} onRegistrar={agregarRegistroCuenta} onEliminar={eliminarCuenta} />;
       })()}
 
       {correoEnviado && <div className="toast"><CheckCircle2 /> Resumen enviado (simulado)</div>}
