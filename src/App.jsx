@@ -285,7 +285,11 @@ export default function EcoRadar() {
   const [loginClave, setLoginClave] = useState("");
   const [errorLogin, setErrorLogin] = useState("");
 
-  const [personas, setPersonas] = useState(() => cargar("eco_gad_personas", VACIO.personas));
+  const [personas, setPersonas] = useState(() => {
+    const cargadas = cargar("eco_gad_personas", VACIO.personas);
+    // migración: cuentas guardadas antes de renombrar "Directora" a "Director/a de Comunicación"
+    return cargadas.map(p => (p.rol === "Directora" ? { ...p, rol: ROL_DIRECTORA } : p));
+  });
   const [rolesDisponibles, setRolesDisponibles] = useState(() => cargar("eco_gad_roles_disp", ROLES_SEED));
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
