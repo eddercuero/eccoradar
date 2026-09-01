@@ -1264,6 +1264,9 @@ export default function EcoRadar() {
         .campo-con-volver input { flex: 1; min-width: 160px; }
         .campo-volver { font-size: 11px; color: var(--rojo); cursor: pointer; white-space: nowrap; }
 
+        .proyectos-lista-minimizada { margin-bottom: 18px; }
+        .proyectos-lista-minimizada-titulo { font-size: 11.5px; color: var(--dim); margin-bottom: 8px; font-style: italic; }
+
         .proyectos-layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
         .proyectos-lista { display: flex; flex-direction: column; gap: 8px; }
         .proyecto-mini { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
@@ -1300,9 +1303,9 @@ export default function EcoRadar() {
         .reloj-cuenta-fecha { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; }
 
         .selector-entregables { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
-        .selector-entregables-titulo { font-size: 12px; font-weight: 600; color: var(--plomo-oscuro); margin-bottom: 12px; }
-        .selector-entregables-grupo { margin-bottom: 12px; }
-        .selector-entregables-cat { font-size: 11px; font-weight: 600; color: var(--dim); margin-bottom: 6px; }
+        .selector-entregables-titulo { font-size: 13px; font-weight: 600; color: var(--plomo-oscuro); margin-bottom: 16px; }
+        .selector-entregables-grupo { margin-bottom: 18px; }
+        .selector-entregables-cat { font-size: 14px; font-weight: 700; color: var(--rojo); margin-bottom: 9px; padding-bottom: 6px; border-bottom: 2px solid var(--rojo-soft); }
 
         .entregables-completados { margin: 12px 0; padding-top: 10px; border-top: 1px dashed var(--border); }
         .entregables-completados-titulo { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; }
@@ -1657,7 +1660,15 @@ export default function EcoRadar() {
                   <div className="panel">
                     <div className="panel-titulo">
                       Proyectos y trabajos transversales
-                      <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormProyecto(!mostrarFormProyecto)}><Plus /> Nuevo proyecto</button>
+                      <button className="btn btn-primario btn-sm" onClick={() => {
+                        if (!mostrarFormProyecto) {
+                          setNuevoProyecto({ nombre: "", tipo: tiposProyectoDisponibles[0], direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
+                          setModoTipoProyectoManual(false);
+                          setModoDireccionManual(false);
+                          setModoEncargadoManual(false);
+                        }
+                        setMostrarFormProyecto(!mostrarFormProyecto);
+                      }}><Plus /> Nuevo proyecto</button>
                     </div>
                     {mostrarFormProyecto && (
                       <div className="form-inline">
@@ -1711,9 +1722,22 @@ export default function EcoRadar() {
                   </div>
                 )}
 
-                {proyectosVisibles.length === 0 && <div className="panel"><div className="campo-vacio">Aún no hay proyectos creados.</div></div>}
+                {!mostrarFormProyecto && proyectosVisibles.length === 0 && <div className="panel"><div className="campo-vacio">Aún no hay proyectos creados.</div></div>}
 
-                {proyectosVisibles.length > 0 && (() => {
+                {mostrarFormProyecto && proyectosVisibles.length > 0 && (
+                  <div className="proyectos-lista-minimizada">
+                    <div className="proyectos-lista-minimizada-titulo">Estos siguen en proceso — termina de crear el nuevo para volver a abrirlos</div>
+                    <div className="chips">
+                      {proyectosVisibles.map(p => {
+                        const av = avanceProyecto(p);
+                        const s = semaforoProyecto({ ...p, avance: av });
+                        return <div key={p.id} className="chip"><span className={"semaforo-punto " + s} />{p.nombre} · {av}%</div>;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {!mostrarFormProyecto && proyectosVisibles.length > 0 && (() => {
                   const seleccionado = proyectosVisibles.find(p => p.id === proyectoSeleccionado) || proyectosVisibles[0];
                   const avance = avanceProyecto(seleccionado);
                   const sem = semaforoProyecto({ ...seleccionado, avance });
