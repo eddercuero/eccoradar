@@ -710,6 +710,31 @@ export default function EcoRadar() {
     setUnidadActual(v);
     setNuevaUnidadTexto("");
   }
+  function eliminarUnidad(nombre) {
+    if (UNIDADES_SEED.includes(nombre)) return;
+    setUnidadesDisponibles(prev => prev.filter(u => u !== nombre));
+    if (unidadActual === nombre) setUnidadActual(UNIDADES_SEED[0]);
+  }
+  function eliminarRol(nombre) {
+    if (ROLES_SEED.includes(nombre)) return;
+    setRolesDisponibles(prev => prev.filter(r => r !== nombre));
+  }
+  function eliminarModalidad(nombre) {
+    if (MODALIDADES_SEED.includes(nombre)) return;
+    setModalidadesDisponibles(prev => prev.filter(m => m !== nombre));
+  }
+  function eliminarDireccionCatalogo(nombre) {
+    if (DIRECCIONES_SEED.includes(nombre)) return;
+    setDireccionesDisponibles(prev => prev.filter(d => d !== nombre));
+  }
+  function eliminarTipoProyectoCatalogo(nombre) {
+    if (TIPOS_PROYECTO_SEED.includes(nombre)) return;
+    setTiposProyectoDisponibles(prev => prev.filter(t => t !== nombre));
+  }
+  function eliminarTipoEntregableCatalogo(nombre) {
+    if (TIPOS_ENTREGABLE.includes(nombre)) return;
+    setTiposEntregableDisponibles(prev => prev.filter(t => t !== nombre));
+  }
   const [nuevoTipoProyectoTexto, setNuevoTipoProyectoTexto] = useState("");
   function agregarTipoProyectoNuevo() {
     const v = nuevoTipoProyectoTexto.trim();
@@ -2123,13 +2148,48 @@ export default function EcoRadar() {
                 <div className="panel">
                   <div className="panel-titulo">¿Qué equipo quieres gestionar?</div>
                   <div className="chips">
-                    {unidadesDisponibles.map(u => <div key={u} className={"chip" + (unidadActual === u ? " activo" : "")} onClick={() => setUnidadActual(u)}>{u}</div>)}
+                    {unidadesDisponibles.map(u => (
+                      <div key={u} className={"chip" + (unidadActual === u ? " activo" : "")} onClick={() => setUnidadActual(u)}>
+                        {u}
+                        {!UNIDADES_SEED.includes(u) && <IconCerrar style={{ width: 10, height: 10, marginLeft: 5 }} onClick={(e) => { e.stopPropagation(); eliminarUnidad(u); }} />}
+                      </div>
+                    ))}
                   </div>
                   <div className="form-inline" style={{ marginBottom: 0 }}>
                     <input type="text" placeholder="Agregar nuevo equipo/dirección (ej. Turismo)" value={nuevaUnidadTexto} onChange={e => setNuevaUnidadTexto(e.target.value)} />
                     <button className="btn btn-sm" onClick={agregarUnidadNueva}><Plus /> Agregar equipo</button>
                   </div>
                   <div className="aviso-simulado">Cada equipo (Dircom, Bomberos, Patronato, Comunicación Externa, u otro que agregues) tiene su propia gente y su propio organigrama — son autónomos entre sí.</div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-titulo">Listas personalizadas — borra lo que agregaste por error</div>
+                  {[
+                    { titulo: "Roles", lista: rolesDisponibles, seed: ROLES_SEED, eliminar: eliminarRol },
+                    { titulo: "Modalidades", lista: modalidadesDisponibles, seed: MODALIDADES_SEED, eliminar: eliminarModalidad },
+                    { titulo: "Direcciones", lista: direccionesDisponibles, seed: DIRECCIONES_SEED, eliminar: eliminarDireccionCatalogo },
+                    { titulo: "Tipos de proyecto", lista: tiposProyectoDisponibles, seed: TIPOS_PROYECTO_SEED, eliminar: eliminarTipoProyectoCatalogo },
+                    { titulo: "Tipos de entregable", lista: tiposEntregableDisponibles, seed: TIPOS_ENTREGABLE, eliminar: eliminarTipoEntregableCatalogo },
+                  ].map(grupo => {
+                    const personalizados = grupo.lista.filter(x => !grupo.seed.includes(x));
+                    if (personalizados.length === 0) return null;
+                    return (
+                      <div key={grupo.titulo} className="selector-entregables-grupo">
+                        <div className="selector-entregables-cat" style={{ fontSize: 12, color: "var(--muted)", borderBottom: "none" }}>{grupo.titulo}</div>
+                        <div className="chips">
+                          {personalizados.map(x => (
+                            <div key={x} className="chip">
+                              {x}
+                              <IconCerrar style={{ width: 10, height: 10, marginLeft: 5, cursor: "pointer" }} onClick={() => grupo.eliminar(x)} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {[rolesDisponibles.filter(x => !ROLES_SEED.includes(x)), modalidadesDisponibles.filter(x => !MODALIDADES_SEED.includes(x)), direccionesDisponibles.filter(x => !DIRECCIONES_SEED.includes(x)), tiposProyectoDisponibles.filter(x => !TIPOS_PROYECTO_SEED.includes(x)), tiposEntregableDisponibles.filter(x => !TIPOS_ENTREGABLE.includes(x))].every(l => l.length === 0) && (
+                    <div className="campo-vacio">No has agregado nada personalizado todavía — aquí aparecerá para que lo puedas borrar si te equivocas.</div>
+                  )}
                 </div>
 
                 <div className="panel">
