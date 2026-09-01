@@ -30,7 +30,20 @@ const CLAVE_ASESOR = "asesor2026";
 
 const AREAS = ["Institucional", "Empresa Pública", "Patronato", "Bomberos", "Comunicación Externa", "Distribución", "ATL", "BTL", "2.0"];
 
-const TIPOS_ENTREGABLE = ["Foto", "Video", "Redacción", "Infografía", "Difusión", "Voz en off", "Diseño"];
+const CATEGORIAS_ENTREGABLE = {
+  "📰 Editoriales y de Prensa": ["Boletín de prensa", "Ayuda memoria", "Discurso / Guion de intervención", "Artículo de opinión / Editorial", "Dossier de prensa", "Revista institucional / Memoria anual"],
+  "🌐 Digitales y Web": ["Newsletter / Boletín electrónico", "Landing page", "Banner digital", "E-book / Libro digital", "Filtro para redes sociales"],
+  "📊 Estratégicos y de Análisis": ["Plan de comunicación (Plancom)", "Manual de crisis", "Clipping / Monitoreo de medios", "Informe de métricas / Analítica", "Estudio de reputación"],
+  "🎨 Identidad y Diseño Gráfico": ["Manual de marca / Identidad corporativa", "Presentación corporativa", "Infografía", "Merchandising / Material POP", "Folletos / Flyers / Dípticos / Trípticos", "Diseño gráfico"],
+  "🎙️ Audiovisuales": ["Foto", "Video", "Podcast / Microprograma radial", "Cuña radial / Spot de audio", "Banco de voz"],
+  "🎪 Organización y Eventos": ["Guion técnico / Escaleta", "Convocatoria de prensa", "Backdrop / Photocall"],
+  "📣 Redes y Difusión": ["Redacción de contenido", "Difusión en redes"],
+};
+const TIPOS_ENTREGABLE = Object.values(CATEGORIAS_ENTREGABLE).flat();
+function categoriaDeEntregable(tipo) {
+  for (const [cat, lista] of Object.entries(CATEGORIAS_ENTREGABLE)) if (lista.includes(tipo)) return cat;
+  return "✏️ Personalizados";
+}
 const TIPOS_PROYECTO_SEED = ["Transversal", "De Dircom"];
 const DIRECCIONES_SEED = [
   "Dirección de Obras Públicas",
@@ -429,7 +442,10 @@ export default function EcoRadar() {
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
-  const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE));
+  const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
+    const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
+    return Array.from(new Set([...TIPOS_ENTREGABLE, ...guardados]));
+  });
   const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
   const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
   const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
@@ -598,9 +614,17 @@ export default function EcoRadar() {
   const [entregableForm, setEntregableForm] = useState({});
   function agregarEntregable(proyectoId) {
     const f = entregableForm[proyectoId];
-    if (!f || !f.responsable) return;
-    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, { id: Date.now(), tipo: f.tipo || tiposEntregableDisponibles[0], responsable: f.responsable, fecha: f.fecha || "", completado: false }] } : p));
-    setEntregableForm({ ...entregableForm, [proyectoId]: { tipo: tiposEntregableDisponibles[0], responsable: "", fecha: "" } });
+    if (!f || !f.responsable || !f.tipos || f.tipos.length === 0) return;
+    const nuevos = f.tipos.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: f.responsable, fecha: f.fecha || "", completado: false }));
+    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, ...nuevos] } : p));
+    setEntregableForm({ ...entregableForm, [proyectoId]: { tipos: [], responsable: "", fecha: "" } });
+  }
+  function alternarTipoEntregableSeleccionado(proyectoId, tipo) {
+    setEntregableForm(prev => {
+      const actual = prev[proyectoId] || { tipos: [], responsable: "", fecha: "" };
+      const tipos = actual.tipos.includes(tipo) ? actual.tipos.filter(t => t !== tipo) : [...actual.tipos, tipo];
+      return { ...prev, [proyectoId]: { ...actual, tipos } };
+    });
   }
   function alternarEntregable(proyectoId, entregableId) {
     setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
@@ -1266,6 +1290,11 @@ export default function EcoRadar() {
         .reloj-cuenta-num { font-family: 'Newsreader', serif; font-size: 40px; line-height: 1; }
         .reloj-cuenta-unidad { font-size: 10.5px; color: rgba(255,255,255,0.6); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
         .reloj-cuenta-fecha { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; }
+
+        .selector-entregables { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+        .selector-entregables-titulo { font-size: 12px; font-weight: 600; color: var(--plomo-oscuro); margin-bottom: 12px; }
+        .selector-entregables-grupo { margin-bottom: 12px; }
+        .selector-entregables-cat { font-size: 11px; font-weight: 600; color: var(--dim); margin-bottom: 6px; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1739,17 +1768,35 @@ export default function EcoRadar() {
                             );
                           })}
                           {seleccionado.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
-                          {esAdmin && (
-                            <div className="form-inline" style={{ marginTop: 10, marginBottom: 0 }}>
-                              <select value={(entregableForm[seleccionado.id] || {}).tipo || tiposEntregableDisponibles[0]} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), tipo: e.target.value } })}>{tiposEntregableDisponibles.map(t => <option key={t}>{t}</option>)}</select>
-                              <select value={(entregableForm[seleccionado.id] || {}).responsable || ""} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), responsable: e.target.value } })}>
-                                <option value="">Responsable…</option>
-                                {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
-                              </select>
-                              <input type="date" value={(entregableForm[seleccionado.id] || {}).fecha || ""} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), fecha: e.target.value } })} />
-                              <button className="btn btn-sm" onClick={() => agregarEntregable(seleccionado.id)}><Plus /> Agregar</button>
-                            </div>
-                          )}
+                          {esAdmin && (() => {
+                            const formActual = entregableForm[seleccionado.id] || { tipos: [], responsable: "", fecha: "" };
+                            const gruposConPersonalizados = { ...CATEGORIAS_ENTREGABLE };
+                            const personalizados = tiposEntregableDisponibles.filter(t => categoriaDeEntregable(t) === "✏️ Personalizados");
+                            if (personalizados.length) gruposConPersonalizados["✏️ Personalizados"] = personalizados;
+                            return (
+                              <div className="selector-entregables">
+                                <div className="selector-entregables-titulo">Elige uno o varios productos que se van a entregar</div>
+                                {Object.entries(gruposConPersonalizados).map(([categoria, tipos]) => (
+                                  <div key={categoria} className="selector-entregables-grupo">
+                                    <div className="selector-entregables-cat">{categoria}</div>
+                                    <div className="chips">
+                                      {tipos.map(t => (
+                                        <div key={t} className={"chip" + (formActual.tipos.includes(t) ? " activo" : "")} onClick={() => alternarTipoEntregableSeleccionado(seleccionado.id, t)}>{t}</div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="form-inline" style={{ marginTop: 12 }}>
+                                  <select value={formActual.responsable} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, responsable: e.target.value } })}>
+                                    <option value="">Responsable…</option>
+                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                                  </select>
+                                  <input type="date" value={formActual.fecha} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, fecha: e.target.value } })} />
+                                  <button className="btn btn-primario btn-sm" onClick={() => agregarEntregable(seleccionado.id)}><Plus /> Agregar {formActual.tipos.length > 0 ? `(${formActual.tipos.length})` : ""}</button>
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
