@@ -482,6 +482,15 @@ export default function EcoRadar() {
   const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
   const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
   const hoyISO = reloj.toISOString().slice(0, 10);
+  const resumenRedesHoy = useMemo(() => {
+    let revisadas = 0, alertas = 0;
+    cuentas.forEach(c => {
+      const registrosHoy = (c.registros || []).filter(r => r.fechaISO && r.fechaISO.slice(0, 10) === hoyISO);
+      if (registrosHoy.length > 0) revisadas++;
+      if (registrosHoy.some(r => colorCalificacion(r.calificacion) === "rojo")) alertas++;
+    });
+    return { total: cuentas.length, revisadas, pendientes: cuentas.length - revisadas, alertas };
+  }, [cuentas, hoyISO]);
   const rankingPaginas = useMemo(() => {
     return [...cuentas].map(c => {
       const registros = c.registros || [];
@@ -1140,6 +1149,15 @@ export default function EcoRadar() {
         .registro-item.registro-verde { border-left-color: var(--success); background: var(--success-soft); }
         .registro-item.registro-amarillo { border-left-color: var(--warning); background: var(--warning-soft); }
         .registro-item.registro-rojo { border-left-color: var(--rojo); background: var(--rojo-soft); }
+
+        .centro-mando { background: var(--plomo-oscuro); border-radius: 10px; padding: 20px 22px; margin-bottom: 20px; color: #fff; }
+        .centro-mando-cab { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
+        .centro-mando-titulo { font-family: 'Newsreader', serif; font-size: 19px; }
+        .centro-mando-fecha { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; text-transform: capitalize; }
+        .centro-mando-avance { font-family: 'Newsreader', serif; font-size: 26px; color: var(--success); }
+        .centro-mando .kpi-label { color: rgba(255,255,255,0.6); }
+        .centro-mando .barra-fondo { background: rgba(255,255,255,0.12); border: none; }
+        .centro-mando .aviso-simulado { color: rgba(255,255,255,0.45); }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1578,6 +1596,24 @@ export default function EcoRadar() {
 
             {modulo === "redes" && (
               <>
+                <div className="centro-mando">
+                  <div className="centro-mando-cab">
+                    <div>
+                      <div className="centro-mando-titulo">Centro de mando · Monitoreo de hoy</div>
+                      <div className="centro-mando-fecha">{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div>
+                    </div>
+                    <div className="centro-mando-avance">{resumenRedesHoy.total > 0 ? Math.round((resumenRedesHoy.revisadas / resumenRedesHoy.total) * 100) : 0}% revisado</div>
+                  </div>
+                  <div className="barra-fondo" style={{ height: 8, marginBottom: 18 }}><div className="barra-relleno" style={{ width: (resumenRedesHoy.total > 0 ? (resumenRedesHoy.revisadas / resumenRedesHoy.total) * 100 : 0) + "%", background: "var(--success)" }} /></div>
+                  <div className="kpis" style={{ marginBottom: 0 }}>
+                    <div className="kpi acento-exito"><div className="kpi-valor">{resumenRedesHoy.revisadas}/{resumenRedesHoy.total}</div><div className="kpi-label">Revisadas hoy</div></div>
+                    <div className="kpi acento-plomo"><div className="kpi-valor">{resumenRedesHoy.pendientes}</div><div className="kpi-label">Pendientes por revisar hoy</div></div>
+                    <div className="kpi acento-rojo"><div className="kpi-valor">{resumenRedesHoy.alertas}</div><div className="kpi-label">Alertas registradas hoy</div></div>
+                    <div className="kpi acento-acero"><div className="kpi-valor">{resumenRedesHoy.total}</div><div className="kpi-label">Cuentas monitoreadas en total</div></div>
+                  </div>
+                  <div className="aviso-simulado" style={{ marginTop: 10, marginBottom: 0 }}>Este resumen se calcula solo, todos los días arranca en cero — se va llenando conforme el equipo revisa cada cuenta y deja su registro.</div>
+                </div>
+
                 <div className="panel">
                   <div className="panel-titulo">Agregar cuenta a monitorear</div>
                   <div className="form-inline">
