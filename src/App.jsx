@@ -143,6 +143,18 @@ function semaforoPrioridad(p) {
   if (p === "Media") return "amarillo";
   return "verde";
 }
+function cuentaRegresiva(fechaStr, ahora) {
+  if (!fechaStr) return null;
+  const fin = new Date(fechaStr + "T23:59:59");
+  const diffMs = fin.getTime() - ahora.getTime();
+  if (isNaN(diffMs)) return null;
+  const vencido = diffMs <= 0;
+  const abs = Math.abs(diffMs);
+  const dias = Math.floor(abs / 86400000);
+  const horas = Math.floor((abs % 86400000) / 3600000);
+  const minutos = Math.floor((abs % 3600000) / 60000);
+  return { vencido, dias, horas, minutos };
+}
 function semaforoProyecto(p) {
   const hoy = new Date("2026-08-31");
   const vencido = p.fechaEntrega && new Date(p.fechaEntrega) < hoy && p.avance < 100;
@@ -566,6 +578,7 @@ export default function EcoRadar() {
   function eliminarMeta(id) { setMetas(metas.filter(m => m.id !== id)); }
 
   const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
   const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
   const [modoDireccionManual, setModoDireccionManual] = useState(false);
   const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
@@ -818,7 +831,7 @@ export default function EcoRadar() {
           --danger: var(--rojo); --danger-soft: var(--rojo-soft);
           --text: #1C1F24; --muted: #6B7280; --dim: #9AA1AC;
           font-family: 'IBM Plex Sans', sans-serif; background: var(--bg); color: var(--text);
-          display: flex; min-height: 100vh; height: 100%; position: relative;
+          display: flex; min-height: 100vh; height: 100%; position: relative; width: 100%; flex: 1;
         }
         .app * { box-sizing: border-box; }
         .app h1, .app h2, .app h3, .app .display { font-family: 'Newsreader', serif; }
@@ -1221,6 +1234,38 @@ export default function EcoRadar() {
         .campo-con-volver { display: flex; align-items: center; gap: 8px; }
         .campo-con-volver input { flex: 1; min-width: 160px; }
         .campo-volver { font-size: 11px; color: var(--rojo); cursor: pointer; white-space: nowrap; }
+
+        .proyectos-layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+        .proyectos-lista { display: flex; flex-direction: column; gap: 8px; }
+        .proyecto-mini { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; cursor: pointer; }
+        .proyecto-mini:hover { border-color: var(--border-strong); }
+        .proyecto-mini.activo { border-color: var(--rojo); background: var(--rojo-soft); }
+        .proyecto-mini-info { flex: 1; min-width: 0; }
+        .proyecto-mini-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .proyecto-mini-tipo { font-size: 11px; color: var(--dim); }
+        .proyecto-mini-avance { font-family: 'Newsreader', serif; font-size: 16px; flex-shrink: 0; }
+
+        .proyecto-detalle { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; }
+        .proyecto-detalle-cab { display: flex; justify-content: space-between; align-items: flex-start; border-left: 4px solid var(--dim); padding-left: 14px; margin-bottom: 18px; }
+        .proyecto-detalle-cab.rojo { border-left-color: var(--rojo); }
+        .proyecto-detalle-cab.amarillo { border-left-color: var(--warning); }
+        .proyecto-detalle-cab.verde { border-left-color: var(--success); }
+        .proyecto-detalle-tipo { font-size: 11.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
+        .proyecto-detalle-nombre { font-family: 'Newsreader', serif; font-size: 24px; }
+        .proyecto-detalle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 8px; }
+        .proyecto-detalle-etiqueta { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 3px; }
+        .proyecto-detalle-valor { font-size: 13.5px; font-weight: 600; }
+
+        .reloj-cuenta { background: var(--plomo-oscuro); border-radius: 10px; padding: 18px 22px; color: #fff; margin-bottom: 18px; }
+        .reloj-cuenta.rojo, .reloj-cuenta.vencido { background: #4A1218; }
+        .reloj-cuenta.amarillo { background: #4A3A10; }
+        .reloj-cuenta.verde { background: #123A24; }
+        .reloj-cuenta-label { font-size: 11.5px; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
+        .reloj-cuenta-numeros { display: flex; gap: 26px; }
+        .reloj-cuenta-bloque { text-align: center; }
+        .reloj-cuenta-num { font-family: 'Newsreader', serif; font-size: 40px; line-height: 1; }
+        .reloj-cuenta-unidad { font-size: 10.5px; color: rgba(255,255,255,0.6); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
+        .reloj-cuenta-fecha { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1624,52 +1669,92 @@ export default function EcoRadar() {
                   </div>
                 )}
 
-                {proyectosVisibles.map(p => {
-                  const avance = avanceProyecto(p);
-                  const sem = semaforoProyecto({ ...p, avance });
-                  return (
-                    <div className={"proyecto-card " + sem} key={p.id}>
-                      <div className="proyecto-cab">
-                        <div>
-                          <div className="proyecto-nombre"><span className={"semaforo-punto " + sem} />{p.nombre}</div>
-                          <div className="proyecto-meta">{p.tipo} · {p.direccion || "sin dirección asignada"} · Encargado/a: {p.encargado || "—"}</div>
-                          <div className="proyecto-meta">Convocatoria: {p.fechaConvocatoria || "—"} · Levantamiento: {p.fechaLevantamiento || "—"} · Entrega: {p.fechaEntrega || "—"}</div>
-                        </div>
-                        <div style={{ textAlign: "right" }}>
-                          <div className="proyecto-avance-num">{avance}%</div>
-                          {esAdmin && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer", marginTop: 6 }} onClick={() => eliminarProyecto(p.id)} />}
-                        </div>
-                      </div>
-                      <div className="barra-fondo"><div className="barra-relleno" style={{ width: avance + "%", background: sem === "rojo" ? "var(--rojo)" : sem === "amarillo" ? "var(--warning)" : "var(--success)" }} /></div>
+                {proyectosVisibles.length === 0 && <div className="panel"><div className="campo-vacio">Aún no hay proyectos creados.</div></div>}
 
-                      <div className="proyecto-entregables">
-                        {p.entregables.map(e => {
-                          const puedeMarcar = esAdmin || e.responsable === nombreVisible;
+                {proyectosVisibles.length > 0 && (() => {
+                  const seleccionado = proyectosVisibles.find(p => p.id === proyectoSeleccionado) || proyectosVisibles[0];
+                  const avance = avanceProyecto(seleccionado);
+                  const sem = semaforoProyecto({ ...seleccionado, avance });
+                  const cuenta = cuentaRegresiva(seleccionado.fechaEntrega, reloj);
+                  return (
+                    <div className="proyectos-layout">
+                      <div className="proyectos-lista">
+                        {proyectosVisibles.map(p => {
+                          const av = avanceProyecto(p);
+                          const s = semaforoProyecto({ ...p, avance: av });
+                          const activo = p.id === seleccionado.id;
                           return (
-                            <div className="entregable-fila" key={e.id}>
-                              <div className={"entregable-check" + (e.completado ? " completado" : "")} onClick={() => puedeMarcar && alternarEntregable(p.id, e.id)}>{e.completado && <CheckCircle2 style={{ width: 11, height: 11 }} />}</div>
-                              <span className={"entregable-texto" + (e.completado ? " completado" : "")}>{e.tipo} — {e.responsable}{e.fecha ? " · " + e.fecha : ""}</span>
-                              {esAdmin && <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer", marginLeft: "auto" }} onClick={() => eliminarEntregable(p.id, e.id)} />}
+                            <div key={p.id} className={"proyecto-mini" + (activo ? " activo" : "")} onClick={() => setProyectoSeleccionado(p.id)}>
+                              <span className={"semaforo-punto " + s} />
+                              <div className="proyecto-mini-info">
+                                <div className="proyecto-mini-nombre">{p.nombre}</div>
+                                <div className="proyecto-mini-tipo">{p.tipo}</div>
+                              </div>
+                              <div className="proyecto-mini-avance">{av}%</div>
                             </div>
                           );
                         })}
-                        {p.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
-                        {esAdmin && (
-                          <div className="form-inline" style={{ marginTop: 10, marginBottom: 0 }}>
-                            <select value={(entregableForm[p.id] || {}).tipo || tiposEntregableDisponibles[0]} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), tipo: e.target.value } })}>{tiposEntregableDisponibles.map(t => <option key={t}>{t}</option>)}</select>
-                            <select value={(entregableForm[p.id] || {}).responsable || ""} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), responsable: e.target.value } })}>
-                              <option value="">Responsable…</option>
-                              {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
-                            </select>
-                            <input type="date" value={(entregableForm[p.id] || {}).fecha || ""} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), fecha: e.target.value } })} />
-                            <button className="btn btn-sm" onClick={() => agregarEntregable(p.id)}><Plus /> Agregar</button>
+                      </div>
+
+                      <div className="proyecto-detalle">
+                        <div className={"proyecto-detalle-cab " + sem}>
+                          <div>
+                            <div className="proyecto-detalle-tipo">{seleccionado.tipo}{seleccionado.direccion ? " · " + seleccionado.direccion : ""}</div>
+                            <div className="proyecto-detalle-nombre">{seleccionado.nombre}</div>
+                          </div>
+                          {esAdmin && <Trash2 style={{ width: 15, height: 15, color: "var(--dim)", cursor: "pointer" }} onClick={() => { eliminarProyecto(seleccionado.id); setProyectoSeleccionado(null); }} />}
+                        </div>
+
+                        {cuenta && (
+                          <div className={"reloj-cuenta " + (cuenta.vencido ? "vencido" : sem)}>
+                            <div className="reloj-cuenta-label">{cuenta.vencido ? "Este proyecto venció hace" : "Tiempo restante para la entrega"}</div>
+                            <div className="reloj-cuenta-numeros">
+                              <div className="reloj-cuenta-bloque"><div className="reloj-cuenta-num">{cuenta.dias}</div><div className="reloj-cuenta-unidad">días</div></div>
+                              <div className="reloj-cuenta-bloque"><div className="reloj-cuenta-num">{cuenta.horas}</div><div className="reloj-cuenta-unidad">horas</div></div>
+                              <div className="reloj-cuenta-bloque"><div className="reloj-cuenta-num">{cuenta.minutos}</div><div className="reloj-cuenta-unidad">min</div></div>
+                            </div>
+                            <div className="reloj-cuenta-fecha">Fecha de entrega: {seleccionado.fechaEntrega}</div>
                           </div>
                         )}
+                        {!cuenta && <div className="aviso-simulado">Este proyecto todavía no tiene fecha de entrega definida.</div>}
+
+                        <div className="proyecto-detalle-grid">
+                          <div><div className="proyecto-detalle-etiqueta">Encargado/a</div><div className="proyecto-detalle-valor">{seleccionado.encargado || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Convocatoria</div><div className="proyecto-detalle-valor">{seleccionado.fechaConvocatoria || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Levantamiento</div><div className="proyecto-detalle-valor">{seleccionado.fechaLevantamiento || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Avance</div><div className="proyecto-detalle-valor">{avance}%</div></div>
+                        </div>
+                        <div className="barra-fondo" style={{ height: 8, margin: "6px 0 18px" }}><div className="barra-relleno" style={{ width: avance + "%", background: sem === "rojo" ? "var(--rojo)" : sem === "amarillo" ? "var(--warning)" : "var(--success)" }} /></div>
+
+                        <div className="proyecto-detalle-etiqueta" style={{ marginBottom: 8 }}>Entregables</div>
+                        <div className="proyecto-entregables" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
+                          {seleccionado.entregables.map(e => {
+                            const puedeMarcar = esAdmin || e.responsable === nombreVisible;
+                            return (
+                              <div className="entregable-fila" key={e.id}>
+                                <div className={"entregable-check" + (e.completado ? " completado" : "")} onClick={() => puedeMarcar && alternarEntregable(seleccionado.id, e.id)}>{e.completado && <CheckCircle2 style={{ width: 11, height: 11 }} />}</div>
+                                <span className={"entregable-texto" + (e.completado ? " completado" : "")}>{e.tipo} — {e.responsable}{e.fecha ? " · " + e.fecha : ""}</span>
+                                {esAdmin && <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer", marginLeft: "auto" }} onClick={() => eliminarEntregable(seleccionado.id, e.id)} />}
+                              </div>
+                            );
+                          })}
+                          {seleccionado.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
+                          {esAdmin && (
+                            <div className="form-inline" style={{ marginTop: 10, marginBottom: 0 }}>
+                              <select value={(entregableForm[seleccionado.id] || {}).tipo || tiposEntregableDisponibles[0]} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), tipo: e.target.value } })}>{tiposEntregableDisponibles.map(t => <option key={t}>{t}</option>)}</select>
+                              <select value={(entregableForm[seleccionado.id] || {}).responsable || ""} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), responsable: e.target.value } })}>
+                                <option value="">Responsable…</option>
+                                {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                              </select>
+                              <input type="date" value={(entregableForm[seleccionado.id] || {}).fecha || ""} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...(entregableForm[seleccionado.id] || {}), fecha: e.target.value } })} />
+                              <button className="btn btn-sm" onClick={() => agregarEntregable(seleccionado.id)}><Plus /> Agregar</button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
-                })}
-                {proyectosVisibles.length === 0 && <div className="panel"><div className="campo-vacio">Aún no hay proyectos creados.</div></div>}
+                })()}
               </>
             )}
 
