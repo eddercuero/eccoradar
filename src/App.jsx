@@ -597,22 +597,8 @@ export default function EcoRadar() {
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
   const [mostrarSelectorEntregables, setMostrarSelectorEntregables] = useState(false);
   const [tiposNuevoProyecto, setTiposNuevoProyecto] = useState([]);
-  const [responsableNuevoProyecto, setResponsableNuevoProyecto] = useState("");
-  const [fechaEntregableNuevoProyecto, setFechaEntregableNuevoProyecto] = useState("");
-  const [entregablesArmados, setEntregablesArmados] = useState([]);
   function alternarTipoNuevoProyecto(tipo) {
     setTiposNuevoProyecto(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
-  }
-  function agregarEntregableArmado() {
-    if (!responsableNuevoProyecto || tiposNuevoProyecto.length === 0) return;
-    const nuevos = tiposNuevoProyecto.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: responsableNuevoProyecto, fecha: fechaEntregableNuevoProyecto, completado: false }));
-    setEntregablesArmados(prev => [...prev, ...nuevos]);
-    setTiposNuevoProyecto([]);
-    setResponsableNuevoProyecto("");
-    setFechaEntregableNuevoProyecto("");
-  }
-  function quitarEntregableArmado(id) {
-    setEntregablesArmados(prev => prev.filter(e => e.id !== id));
   }
   const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
   const [modoDireccionManual, setModoDireccionManual] = useState(false);
@@ -626,16 +612,14 @@ export default function EcoRadar() {
     if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
       setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
     }
-    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: entregablesArmados }, ...proyectos]);
+    const entregablesIniciales = tiposNuevoProyecto.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: "", fecha: "", completado: false }));
+    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: entregablesIniciales }, ...proyectos]);
     setNuevoProyecto({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
     setMostrarFormProyecto(false);
     setModoEncargadoManual(false);
     setModoDireccionManual(false);
     setModoTipoProyectoManual(false);
-    setEntregablesArmados([]);
     setTiposNuevoProyecto([]);
-    setResponsableNuevoProyecto("");
-    setFechaEntregableNuevoProyecto("");
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
   function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
@@ -1700,10 +1684,7 @@ export default function EcoRadar() {
                           setModoTipoProyectoManual(false);
                           setModoDireccionManual(false);
                           setModoEncargadoManual(false);
-                          setEntregablesArmados([]);
                           setTiposNuevoProyecto([]);
-                          setResponsableNuevoProyecto("");
-                          setFechaEntregableNuevoProyecto("");
                         }
                         setMostrarFormProyecto(!mostrarFormProyecto);
                       }}><Plus /> Nuevo proyecto</button>
@@ -1777,30 +1758,10 @@ export default function EcoRadar() {
                             <input type="text" placeholder="+ Agregar producto nuevo (ej. Podcast especial)" value={nuevoTipoEntregableTexto} onChange={e => setNuevoTipoEntregableTexto(e.target.value)} />
                             <button className="btn btn-sm" onClick={agregarTipoEntregableNuevo}>Agregar producto</button>
                           </div>
-                          <div className="form-inline" style={{ marginTop: 12 }}>
-                            <select value={responsableNuevoProyecto} onChange={e => setResponsableNuevoProyecto(e.target.value)}>
-                              <option value="">Responsable de estos productos…</option>
-                              {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
-                            </select>
-                            <input type="date" value={fechaEntregableNuevoProyecto} onChange={e => setFechaEntregableNuevoProyecto(e.target.value)} />
-                            <button className="btn btn-primario btn-sm" onClick={agregarEntregableArmado}><Plus /> Sumar al proyecto {tiposNuevoProyecto.length > 0 ? `(${tiposNuevoProyecto.length})` : ""}</button>
-                          </div>
-                          {entregablesArmados.length > 0 && (
-                            <div className="entregables-armados">
-                              <div className="entregables-completados-titulo">Ya agregados a este proyecto ({entregablesArmados.length})</div>
-                              <div className="entregables-completados-chips">
-                                {entregablesArmados.map(e => (
-                                  <div key={e.id} className="entregable-chip-armado">
-                                    {e.tipo} — {e.responsable}
-                                    <IconCerrar style={{ width: 11, height: 11, cursor: "pointer" }} onClick={() => quitarEntregableArmado(e.id)} />
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
                         </div>
 
-                        <button className="btn btn-primario btn-sm" style={{ marginTop: 14 }} onClick={agregarProyecto}>Crear proyecto {entregablesArmados.length > 0 ? `con ${entregablesArmados.length} entregables` : ""}</button>
+                        <button className="btn btn-primario btn-sm" style={{ marginTop: 14 }} onClick={agregarProyecto}>Crear proyecto {tiposNuevoProyecto.length > 0 ? `con ${tiposNuevoProyecto.length} entregables` : ""}</button>
+                        <div className="aviso-simulado" style={{ marginTop: 8 }}>El responsable de cada entregable se asigna después, ya dentro del proyecto — para cuando sepan exactamente quién hace cada cosa.</div>
                       </div>
                     )}
                   </div>
