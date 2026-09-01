@@ -30,7 +30,22 @@ const CLAVE_ASESOR = "asesor2026";
 
 const AREAS = ["Institucional", "Empresa Pública", "Patronato", "Bomberos", "Comunicación Externa", "Distribución", "ATL", "BTL", "2.0"];
 
-const TIPOS_ENTREGABLE = ["Foto", "Video", "Redacción", "Infografía", "Difusión", "Voz en off", "Diseño", "Otro"];
+const TIPOS_ENTREGABLE = ["Foto", "Video", "Redacción", "Infografía", "Difusión", "Voz en off", "Diseño"];
+const TIPOS_PROYECTO_SEED = ["Transversal", "De Dircom"];
+const DIRECCIONES_SEED = [
+  "Dirección de Obras Públicas",
+  "Dirección de Planificación Urbana y Rural",
+  "Dirección de Gestión Ambiental",
+  "Dirección de Tránsito y Movilidad",
+  "Dirección de Desarrollo Social y Económico",
+  "Dirección de Turismo",
+  "Dirección de Comunicación Social",
+  "Dirección de Asesoría Jurídica / Procuraduría Síndica",
+  "Dirección de Tecnologías de la Información (TIC)",
+  "Dirección de Gestión Financiera",
+  "Dirección de Talento Humano",
+  "Dirección Administrativa",
+];
 
 const TIPOS_CUENTA = ["Propia", "Aliada", "Influencer a favor", "Atacante", "Influencer en contra"];
 const TIPOS_CUENTA_NEGATIVOS = ["Atacante", "Influencer en contra"];
@@ -402,6 +417,9 @@ export default function EcoRadar() {
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
+  const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE));
+  const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
+  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
   const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
   const [metas, setMetas] = useState(() => cargar("eco_gad_metas", VACIO.metas));
   const [turnos, setTurnos] = useState(() => cargar("eco_gad_turnos", VACIO.turnos));
@@ -416,6 +434,9 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
   useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
   useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
+  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
+  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
+  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
   useEffect(() => guardar("eco_gad_tareas", tareas), [tareas]);
   useEffect(() => guardar("eco_gad_metas", metas), [metas]);
   useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
@@ -558,8 +579,8 @@ export default function EcoRadar() {
   function agregarEntregable(proyectoId) {
     const f = entregableForm[proyectoId];
     if (!f || !f.responsable) return;
-    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, { id: Date.now(), tipo: f.tipo || TIPOS_ENTREGABLE[0], responsable: f.responsable, fecha: f.fecha || "", completado: false }] } : p));
-    setEntregableForm({ ...entregableForm, [proyectoId]: { tipo: TIPOS_ENTREGABLE[0], responsable: "", fecha: "" } });
+    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, { id: Date.now(), tipo: f.tipo || tiposEntregableDisponibles[0], responsable: f.responsable, fecha: f.fecha || "", completado: false }] } : p));
+    setEntregableForm({ ...entregableForm, [proyectoId]: { tipo: tiposEntregableDisponibles[0], responsable: "", fecha: "" } });
   }
   function alternarEntregable(proyectoId, entregableId) {
     setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
@@ -629,6 +650,29 @@ export default function EcoRadar() {
     setUnidadesDisponibles([...unidadesDisponibles, v]);
     setUnidadActual(v);
     setNuevaUnidadTexto("");
+  }
+  const [nuevoTipoProyectoTexto, setNuevoTipoProyectoTexto] = useState("");
+  function agregarTipoProyectoNuevo() {
+    const v = nuevoTipoProyectoTexto.trim();
+    if (!v || tiposProyectoDisponibles.includes(v)) return;
+    setTiposProyectoDisponibles([...tiposProyectoDisponibles, v]);
+    setNuevoProyecto(prev => ({ ...prev, tipo: v }));
+    setNuevoTipoProyectoTexto("");
+  }
+  const [nuevaDireccionTexto, setNuevaDireccionTexto] = useState("");
+  function agregarDireccionNueva() {
+    const v = nuevaDireccionTexto.trim();
+    if (!v || direccionesDisponibles.includes(v)) return;
+    setDireccionesDisponibles([...direccionesDisponibles, v]);
+    setNuevoProyecto(prev => ({ ...prev, direccion: v }));
+    setNuevaDireccionTexto("");
+  }
+  const [nuevoTipoEntregableTexto, setNuevoTipoEntregableTexto] = useState("");
+  function agregarTipoEntregableNuevo() {
+    const v = nuevoTipoEntregableTexto.trim();
+    if (!v || tiposEntregableDisponibles.includes(v)) return;
+    setTiposEntregableDisponibles([...tiposEntregableDisponibles, v]);
+    setNuevoTipoEntregableTexto("");
   }
 
   const [fichaAbierta, setFichaAbierta] = useState(null);
@@ -1521,8 +1565,11 @@ export default function EcoRadar() {
                     {mostrarFormProyecto && (
                       <div className="form-inline">
                         <input type="text" placeholder="Nombre del proyecto (ej. Redes de la Alcaldía, Revista institucional)" value={nuevoProyecto.nombre} onChange={e => setNuevoProyecto({ ...nuevoProyecto, nombre: e.target.value })} style={{ minWidth: 260 }} />
-                        <select value={nuevoProyecto.tipo} onChange={e => setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value })}><option>Diario</option><option>Transversal</option><option>Editorial</option><option>Otro</option></select>
-                        <input type="text" placeholder="Dirección solicitante (ej. Desarrollo Productivo)" value={nuevoProyecto.direccion} onChange={e => setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value })} />
+                        <select value={nuevoProyecto.tipo} onChange={e => setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value })}>{tiposProyectoDisponibles.map(t => <option key={t}>{t}</option>)}</select>
+                        <select value={nuevoProyecto.direccion} onChange={e => setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value })}>
+                          <option value="">Dirección solicitante…</option>
+                          {direccionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
                         <select value={nuevoProyecto.encargado} onChange={e => setNuevoProyecto({ ...nuevoProyecto, encargado: e.target.value })}>
                           <option value="">Encargado/a en comunicación…</option>
                           {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
@@ -1536,6 +1583,16 @@ export default function EcoRadar() {
                           <input type="date" value={nuevoProyecto.fechaEntrega} onChange={e => setNuevoProyecto({ ...nuevoProyecto, fechaEntrega: e.target.value })} />
                         </div>
                         <button className="btn btn-primario btn-sm" onClick={agregarProyecto}>Crear proyecto</button>
+                      </div>
+                    )}
+                    {mostrarFormProyecto && (
+                      <div className="form-inline" style={{ marginTop: -4 }}>
+                        <input type="text" placeholder="+ Agregar tipo de proyecto (ej. Campaña)" value={nuevoTipoProyectoTexto} onChange={e => setNuevoTipoProyectoTexto(e.target.value)} />
+                        <button className="btn btn-sm" onClick={agregarTipoProyectoNuevo}>Agregar tipo de proyecto</button>
+                        <input type="text" placeholder="+ Agregar dirección (ej. Turismo)" value={nuevaDireccionTexto} onChange={e => setNuevaDireccionTexto(e.target.value)} />
+                        <button className="btn btn-sm" onClick={agregarDireccionNueva}>Agregar dirección</button>
+                        <input type="text" placeholder="+ Agregar tipo de entregable (ej. Podcast)" value={nuevoTipoEntregableTexto} onChange={e => setNuevoTipoEntregableTexto(e.target.value)} />
+                        <button className="btn btn-sm" onClick={agregarTipoEntregableNuevo}>Agregar tipo de entregable</button>
                       </div>
                     )}
                   </div>
@@ -1573,7 +1630,7 @@ export default function EcoRadar() {
                         {p.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
                         {esAdmin && (
                           <div className="form-inline" style={{ marginTop: 10, marginBottom: 0 }}>
-                            <select value={(entregableForm[p.id] || {}).tipo || TIPOS_ENTREGABLE[0]} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), tipo: e.target.value } })}>{TIPOS_ENTREGABLE.map(t => <option key={t}>{t}</option>)}</select>
+                            <select value={(entregableForm[p.id] || {}).tipo || tiposEntregableDisponibles[0]} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), tipo: e.target.value } })}>{tiposEntregableDisponibles.map(t => <option key={t}>{t}</option>)}</select>
                             <select value={(entregableForm[p.id] || {}).responsable || ""} onChange={e => setEntregableForm({ ...entregableForm, [p.id]: { ...(entregableForm[p.id] || {}), responsable: e.target.value } })}>
                               <option value="">Responsable…</option>
                               {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
