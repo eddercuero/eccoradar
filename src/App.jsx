@@ -87,7 +87,19 @@ const NAV = [
 ];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
-const ROLES_SEED = [ROL_DIRECTORA, "Diseñador", "Redactor", "Community Manager", "Fotografía / Video", "Analista de monitoreo", "Encargado"];
+const CATEGORIAS_ROLES = {
+  "🏛️ Nivel Directivo y Estratégico": [ROL_DIRECTORA, "Gerente / Jefe de Comunicación"],
+  "🤝 Comunicación Corporativa e Institucional": ["Responsable de Relaciones con los Medios / Jefe de Prensa", "Responsable de Comunicación de Crisis", "Director/a de Relaciones Institucionales / Asuntos Públicos", "Responsable de RSC / Sostenibilidad"],
+  "📋 Comunicación Interna": ["Responsable de Comunicación Interna", "Técnico de Comunicación Interna"],
+  "💻 Digital, Social Media y Contenido": ["Digital Communication Manager", "Social Media Manager", "Community Manager", "Especialista en SEO y Contenido", "Diseñador Gráfico / Editor de Video"],
+  "🎤 Relaciones Públicas y Eventos": ["Responsable de Eventos y Protocolo", "Relaciones Públicas (PR Specialist)"],
+  "🔍 Perfiles Técnicos y de Soporte": ["Analista de Comunicación / Consultor de Clipping", "Redactor / Copywriter", "Encargado"],
+};
+const ROLES_SEED = Object.values(CATEGORIAS_ROLES).flat();
+function categoriaDeRol(rol) {
+  for (const [cat, lista] of Object.entries(CATEGORIAS_ROLES)) if (lista.includes(rol)) return cat;
+  return "✏️ Personalizados";
+}
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
 const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
 
@@ -438,7 +450,10 @@ export default function EcoRadar() {
     // migración: cuentas guardadas antes de renombrar "Directora" a "Director/a de Comunicación"
     return cargadas.map(p => (p.rol === "Directora" ? { ...p, rol: ROL_DIRECTORA } : p));
   });
-  const [rolesDisponibles, setRolesDisponibles] = useState(() => cargar("eco_gad_roles_disp", ROLES_SEED));
+  const [rolesDisponibles, setRolesDisponibles] = useState(() => {
+    const guardados = cargar("eco_gad_roles_disp", ROLES_SEED);
+    return Array.from(new Set([...ROLES_SEED, ...guardados]));
+  });
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
@@ -2218,10 +2233,22 @@ export default function EcoRadar() {
                         <input type="text" placeholder="Nombre completo" value={nuevaPersona.nombre} onChange={e => setNuevaPersona({ ...nuevaPersona, nombre: e.target.value })} />
                         <input type="text" placeholder="Código (ej. 002)" value={nuevaPersona.codigo} onChange={e => setNuevaPersona({ ...nuevaPersona, codigo: e.target.value })} style={{ width: 100, flex: "initial" }} />
                         <input type="text" placeholder="Clave" value={nuevaPersona.clave} onChange={e => setNuevaPersona({ ...nuevaPersona, clave: e.target.value })} style={{ width: 110, flex: "initial" }} />
-                        <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value })}>{rolesDisponibles.map(r => <option key={r}>{r}</option>)}</select>
+                        <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value })}>
+                          {Object.entries(CATEGORIAS_ROLES).map(([cat, roles]) => (
+                            <optgroup key={cat} label={cat}>
+                              {roles.map(r => <option key={r}>{r}</option>)}
+                            </optgroup>
+                          ))}
+                          {rolesDisponibles.filter(r => categoriaDeRol(r) === "✏️ Personalizados").length > 0 && (
+                            <optgroup label="✏️ Personalizados">
+                              {rolesDisponibles.filter(r => categoriaDeRol(r) === "✏️ Personalizados").map(r => <option key={r}>{r}</option>)}
+                            </optgroup>
+                          )}
+                        </select>
                         <select value={nuevaPersona.modalidad} onChange={e => setNuevaPersona({ ...nuevaPersona, modalidad: e.target.value })}>{modalidadesDisponibles.map(m => <option key={m}>{m}</option>)}</select>
                         <select value={nuevaPersona.jefeDirecto} onChange={e => setNuevaPersona({ ...nuevaPersona, jefeDirecto: e.target.value })}>
                           <option value="">Sin jefe directo (nivel más alto)</option>
+                          <option value="Alcaldía">Alcaldía (autoridad superior externa)</option>
                           {personasUnidad.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
                         </select>
                         <button className="btn btn-primario btn-sm" onClick={agregarPersona}>Guardar</button>
