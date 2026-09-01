@@ -1158,6 +1158,15 @@ export default function EcoRadar() {
         .centro-mando .kpi-label { color: rgba(255,255,255,0.6); }
         .centro-mando .barra-fondo { background: rgba(255,255,255,0.12); border: none; }
         .centro-mando .aviso-simulado { color: rgba(255,255,255,0.45); }
+
+        .form-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+        .campo-form { display: flex; flex-direction: column; gap: 5px; }
+        .campo-form label { font-size: 11.5px; font-weight: 600; color: var(--plomo-oscuro); }
+        .campo-form-ayuda { font-weight: 400; color: var(--dim); font-size: 10.5px; display: block; }
+        .campo-form input, .campo-form select { padding: 9px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; background: var(--surface); font-family: inherit; }
+        .vista-previa { margin-top: 14px; padding: 12px 14px; background: var(--rojo-soft); border: 1px solid rgba(198,29,45,0.25); border-radius: 6px; font-size: 12.5px; line-height: 1.5; }
+        .vista-previa-alerta { margin-top: 6px; color: var(--warning); font-size: 11.5px; font-weight: 600; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1447,16 +1456,41 @@ export default function EcoRadar() {
                     {esAdmin && <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormMeta(!mostrarFormMeta)}><Plus /> Asignar objetivo</button>}
                   </div>
                   {esAdmin && mostrarFormMeta && (
-                    <div className="form-inline">
-                      <select value={nuevaMeta.persona} onChange={e => setNuevaMeta({ ...nuevaMeta, persona: e.target.value })}>
-                        <option value="">Selecciona persona…</option>
-                        {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
-                      </select>
-                      <input type="text" placeholder="Entregable (ej. Infografías, Videos)" value={nuevaMeta.entregable} onChange={e => setNuevaMeta({ ...nuevaMeta, entregable: e.target.value })} />
-                      <input type="number" min="1" placeholder="Meta hoy" value={nuevaMeta.metaHoy} onChange={e => setNuevaMeta({ ...nuevaMeta, metaHoy: e.target.value })} />
-                      <input type="number" min="1" placeholder="Meta semana" value={nuevaMeta.metaSemana} onChange={e => setNuevaMeta({ ...nuevaMeta, metaSemana: e.target.value })} />
-                      <select value={nuevaMeta.area} onChange={e => setNuevaMeta({ ...nuevaMeta, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
-                      <button className="btn btn-primario btn-sm" onClick={agregarMeta}>Guardar</button>
+                    <div className="form-card">
+                      <div className="form-grid">
+                        <div className="campo-form">
+                          <label>¿Quién?</label>
+                          <select value={nuevaMeta.persona} onChange={e => setNuevaMeta({ ...nuevaMeta, persona: e.target.value })}>
+                            <option value="">Selecciona persona…</option>
+                            {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
+                          </select>
+                        </div>
+                        <div className="campo-form">
+                          <label>¿Qué va a entregar?</label>
+                          <input type="text" placeholder="Ej. Infografías, Videos, Boletines" value={nuevaMeta.entregable} onChange={e => setNuevaMeta({ ...nuevaMeta, entregable: e.target.value })} />
+                        </div>
+                        <div className="campo-form">
+                          <label>Área</label>
+                          <select value={nuevaMeta.area} onChange={e => setNuevaMeta({ ...nuevaMeta, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
+                        </div>
+                        <div className="campo-form">
+                          <label>Meta de HOY <span className="campo-form-ayuda">cuántos debe entregar hoy</span></label>
+                          <input type="number" min="1" value={nuevaMeta.metaHoy} onChange={e => setNuevaMeta({ ...nuevaMeta, metaHoy: e.target.value })} />
+                        </div>
+                        <div className="campo-form">
+                          <label>Meta de la SEMANA <span className="campo-form-ayuda">cuántos en total, de lunes a domingo</span></label>
+                          <input type="number" min="1" value={nuevaMeta.metaSemana} onChange={e => setNuevaMeta({ ...nuevaMeta, metaSemana: e.target.value })} />
+                        </div>
+                      </div>
+                      {nuevaMeta.persona && nuevaMeta.entregable && (
+                        <div className="vista-previa">
+                          <strong>{nuevaMeta.persona}</strong> debe entregar <strong>{nuevaMeta.metaHoy || "0"} {nuevaMeta.entregable}</strong> hoy, y llegar a <strong>{nuevaMeta.metaSemana || "0"} {nuevaMeta.entregable}</strong> en total durante toda la semana.
+                          {Number(nuevaMeta.metaSemana) > 0 && Number(nuevaMeta.metaHoy) > 0 && Number(nuevaMeta.metaSemana) < Number(nuevaMeta.metaHoy) && (
+                            <div className="vista-previa-alerta">⚠ La meta semanal es menor que la de hoy — revisa si eso es lo que quieres.</div>
+                          )}
+                        </div>
+                      )}
+                      <button className="btn btn-primario btn-sm" onClick={agregarMeta} style={{ marginTop: 12 }}>Guardar objetivo</button>
                     </div>
                   )}
                   {(esAdmin ? metas : metasPropias).map(m => (
