@@ -100,6 +100,21 @@ function categoriaDeRol(rol) {
   for (const [cat, lista] of Object.entries(CATEGORIAS_ROLES)) if (lista.includes(rol)) return cat;
   return "✏️ Personalizados";
 }
+const TAREAS_DEFAULT_POR_CATEGORIA = {
+  "🏛️ Nivel Directivo y Estratégico": ["Revisar y aprobar contenidos del día", "Reunión de coordinación con el equipo", "Reporte de gestión a Alcaldía", "Supervisión de campañas activas", "Atención a medios y prensa", "Planificación semanal de comunicación"],
+  "🤝 Comunicación Corporativa e Institucional": ["Redacción de boletines de prensa", "Monitoreo de medios y clipping", "Coordinación con periodistas", "Actualización del dossier institucional", "Seguimiento a temas de reputación", "Apoyo en gestión de crisis si aplica"],
+  "📋 Comunicación Interna": ["Actualizar cartelera / intranet institucional", "Redactar boletín interno", "Coordinar comunicación de eventos internos", "Recoger novedades de las direcciones", "Apoyar clima organizacional", "Difundir comunicados internos"],
+  "💻 Digital, Social Media y Contenido": ["Publicaciones diarias en redes sociales", "Responder comentarios y mensajes", "Diseño de piezas gráficas", "Monitoreo de métricas de redes", "Producción de videos / reels", "Planificación de contenido semanal"],
+  "🎤 Relaciones Públicas y Eventos": ["Coordinación logística de eventos", "Elaboración de guion / escaleta", "Gestión de invitaciones y protocolo", "Cobertura de eventos institucionales", "Seguimiento a alianzas estratégicas", "Reporte post-evento"],
+  "🔍 Perfiles Técnicos y de Soporte": ["Monitoreo de prensa y redes", "Elaboración de reportes de clipping", "Redacción de discursos y textos oficiales", "Apoyo en informes de gestión", "Archivo y organización de material de prensa", "Revisión de contenidos antes de publicación"],
+};
+function generarTareasFrecuentesPorDefecto(rol) {
+  const categoria = categoriaDeRol(rol);
+  const tareas = TAREAS_DEFAULT_POR_CATEGORIA[categoria];
+  if (!tareas) return [];
+  const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  return tareas.map((tarea, i) => ({ id: Date.now() + i, dia: dias[i], tarea }));
+}
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
 const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
 
@@ -695,7 +710,7 @@ export default function EcoRadar() {
   const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
-    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [] }]);
+    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol) }]);
     setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
     setMostrarFormPersona(false);
   }
@@ -1559,7 +1574,7 @@ export default function EcoRadar() {
                       <div className="form-inline">
                         <select value={nuevoTurno.persona} onChange={e => setNuevoTurno({ ...nuevoTurno, persona: e.target.value })}>
                           <option value="">Selecciona persona…</option>
-                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
                         </select>
                         <select value={nuevoTurno.dia} onChange={e => setNuevoTurno({ ...nuevoTurno, dia: e.target.value })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
                         <input type="time" value={nuevoTurno.horaInicio} onChange={e => setNuevoTurno({ ...nuevoTurno, horaInicio: e.target.value })} />
@@ -1605,7 +1620,7 @@ export default function EcoRadar() {
                         <input type="text" placeholder="Descripción de la tarea (ej. 3 videos, 1 video para la cumbre de jóvenes)" value={nuevaTarea.tarea} onChange={e => setNuevaTarea({ ...nuevaTarea, tarea: e.target.value })} />
                         <select value={nuevaTarea.responsable} onChange={e => setNuevaTarea({ ...nuevaTarea, responsable: e.target.value })}>
                           <option value="">Responsable…</option>
-                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
                         </select>
                         <select value={nuevaTarea.area} onChange={e => setNuevaTarea({ ...nuevaTarea, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
                         <select value={nuevaTarea.prioridad} onChange={e => setNuevaTarea({ ...nuevaTarea, prioridad: e.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select>
@@ -1763,7 +1778,7 @@ export default function EcoRadar() {
                         ) : (
                           <select value={nuevoProyecto.encargado} onChange={e => { if (e.target.value === "__otro__") { setModoEncargadoManual(true); setNuevoProyecto({ ...nuevoProyecto, encargado: "" }); } else { setNuevoProyecto({ ...nuevoProyecto, encargado: e.target.value }); } }}>
                             <option value="">Encargado/a en comunicación…</option>
-                            {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                            {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
                             <option value="__otro__">Otro (escribir nombre)</option>
                           </select>
                         )}
@@ -1892,7 +1907,7 @@ export default function EcoRadar() {
                                 {puedeReasignar ? (
                                   <select className="entregable-responsable-select" value={e.responsable} onChange={ev => cambiarResponsableEntregable(seleccionado.id, e.id, ev.target.value)}>
                                     <option value="">Sin asignar</option>
-                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre} — {pe.rol}</option>)}
                                   </select>
                                 ) : (
                                   <span className="entregable-responsable-texto">{e.responsable || "Sin asignar"}</span>
@@ -1943,7 +1958,7 @@ export default function EcoRadar() {
                                 <div className="form-inline" style={{ marginTop: 12 }}>
                                   <select value={formActual.responsable} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, responsable: e.target.value } })}>
                                     <option value="">Responsable…</option>
-                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre} — {pe.rol}</option>)}
                                   </select>
                                   <input type="date" value={formActual.fecha} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, fecha: e.target.value } })} />
                                   <button className="btn btn-primario btn-sm" onClick={() => { agregarEntregable(seleccionado.id); setMostrarSelectorEntregables(false); }}><Plus /> Agregar {formActual.tipos.length > 0 ? `(${formActual.tipos.length})` : ""}</button>
@@ -2233,7 +2248,7 @@ export default function EcoRadar() {
                         <input type="text" placeholder="Nombre completo" value={nuevaPersona.nombre} onChange={e => setNuevaPersona({ ...nuevaPersona, nombre: e.target.value })} />
                         <input type="text" placeholder="Código (ej. 002)" value={nuevaPersona.codigo} onChange={e => setNuevaPersona({ ...nuevaPersona, codigo: e.target.value })} style={{ width: 100, flex: "initial" }} />
                         <input type="text" placeholder="Clave" value={nuevaPersona.clave} onChange={e => setNuevaPersona({ ...nuevaPersona, clave: e.target.value })} style={{ width: 110, flex: "initial" }} />
-                        <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value })}>
+                        <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value, jefeDirecto: e.target.value === ROL_DIRECTORA ? "Alcaldía" : nuevaPersona.jefeDirecto })}>
                           {Object.entries(CATEGORIAS_ROLES).map(([cat, roles]) => (
                             <optgroup key={cat} label={cat}>
                               {roles.map(r => <option key={r}>{r}</option>)}
@@ -2246,11 +2261,12 @@ export default function EcoRadar() {
                           )}
                         </select>
                         <select value={nuevaPersona.modalidad} onChange={e => setNuevaPersona({ ...nuevaPersona, modalidad: e.target.value })}>{modalidadesDisponibles.map(m => <option key={m}>{m}</option>)}</select>
-                        <select value={nuevaPersona.jefeDirecto} onChange={e => setNuevaPersona({ ...nuevaPersona, jefeDirecto: e.target.value })}>
+                        <select value={nuevaPersona.jefeDirecto} onChange={e => setNuevaPersona({ ...nuevaPersona, jefeDirecto: e.target.value })} disabled={nuevaPersona.rol === ROL_DIRECTORA}>
                           <option value="">Sin jefe directo (nivel más alto)</option>
                           <option value="Alcaldía">Alcaldía (autoridad superior externa)</option>
-                          {personasUnidad.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                          {personasUnidad.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
                         </select>
+                        {nuevaPersona.rol === ROL_DIRECTORA && <span style={{ fontSize: 11, color: "var(--dim)", alignSelf: "center" }}>El Director/a responde directo a Alcaldía</span>}
                         <button className="btn btn-primario btn-sm" onClick={agregarPersona}>Guardar</button>
                       </div>
                       <div className="form-inline">
