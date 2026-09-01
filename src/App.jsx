@@ -566,12 +566,19 @@ export default function EcoRadar() {
   function eliminarMeta(id) { setMetas(metas.filter(m => m.id !== id)); }
 
   const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
+  const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
+  const [modoDireccionManual, setModoDireccionManual] = useState(false);
   const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
   function agregarProyecto() {
     if (!nuevoProyecto.nombre.trim()) return;
+    if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
+      setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
+    }
     setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: [] }, ...proyectos]);
     setNuevoProyecto({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
     setMostrarFormProyecto(false);
+    setModoEncargadoManual(false);
+    setModoDireccionManual(false);
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
   function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
@@ -1211,6 +1218,9 @@ export default function EcoRadar() {
         .campo-form input, .campo-form select { padding: 9px 10px; border: 1px solid var(--border); border-radius: 5px; font-size: 13px; background: var(--surface); font-family: inherit; }
         .vista-previa { margin-top: 14px; padding: 12px 14px; background: var(--rojo-soft); border: 1px solid rgba(198,29,45,0.25); border-radius: 6px; font-size: 12.5px; line-height: 1.5; }
         .vista-previa-alerta { margin-top: 6px; color: var(--warning); font-size: 11.5px; font-weight: 600; }
+        .campo-con-volver { display: flex; align-items: center; gap: 8px; }
+        .campo-con-volver input { flex: 1; min-width: 160px; }
+        .campo-volver { font-size: 11px; color: var(--rojo); cursor: pointer; white-space: nowrap; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1566,14 +1576,30 @@ export default function EcoRadar() {
                       <div className="form-inline">
                         <input type="text" placeholder="Nombre del proyecto (ej. Redes de la Alcaldía, Revista institucional)" value={nuevoProyecto.nombre} onChange={e => setNuevoProyecto({ ...nuevoProyecto, nombre: e.target.value })} style={{ minWidth: 260 }} />
                         <select value={nuevoProyecto.tipo} onChange={e => setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value })}>{tiposProyectoDisponibles.map(t => <option key={t}>{t}</option>)}</select>
-                        <select value={nuevoProyecto.direccion} onChange={e => setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value })}>
-                          <option value="">Dirección solicitante…</option>
-                          {direccionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
-                        </select>
-                        <select value={nuevoProyecto.encargado} onChange={e => setNuevoProyecto({ ...nuevoProyecto, encargado: e.target.value })}>
-                          <option value="">Encargado/a en comunicación…</option>
-                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
-                        </select>
+                        {modoDireccionManual ? (
+                          <div className="campo-con-volver">
+                            <input type="text" placeholder="Nombre de la dirección" value={nuevoProyecto.direccion} onChange={e => setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value })} autoFocus />
+                            <span className="campo-volver" onClick={() => { setModoDireccionManual(false); setNuevoProyecto({ ...nuevoProyecto, direccion: "" }); }}>← elegir de la lista</span>
+                          </div>
+                        ) : (
+                          <select value={nuevoProyecto.direccion} onChange={e => { if (e.target.value === "__otro__") { setModoDireccionManual(true); setNuevoProyecto({ ...nuevoProyecto, direccion: "" }); } else { setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value }); } }}>
+                            <option value="">Dirección solicitante…</option>
+                            {direccionesDisponibles.map(d => <option key={d} value={d}>{d}</option>)}
+                            <option value="__otro__">Otro (escribir dirección)</option>
+                          </select>
+                        )}
+                        {modoEncargadoManual ? (
+                          <div className="campo-con-volver">
+                            <input type="text" placeholder="Nombre del encargado/a" value={nuevoProyecto.encargado} onChange={e => setNuevoProyecto({ ...nuevoProyecto, encargado: e.target.value })} autoFocus />
+                            <span className="campo-volver" onClick={() => { setModoEncargadoManual(false); setNuevoProyecto({ ...nuevoProyecto, encargado: "" }); }}>← elegir de la lista</span>
+                          </div>
+                        ) : (
+                          <select value={nuevoProyecto.encargado} onChange={e => { if (e.target.value === "__otro__") { setModoEncargadoManual(true); setNuevoProyecto({ ...nuevoProyecto, encargado: "" }); } else { setNuevoProyecto({ ...nuevoProyecto, encargado: e.target.value }); } }}>
+                            <option value="">Encargado/a en comunicación…</option>
+                            {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                            <option value="__otro__">Otro (escribir nombre)</option>
+                          </select>
+                        )}
                         <div className="form-inline" style={{ marginBottom: 0 }}>
                           <label style={{ fontSize: 11, color: "var(--muted)", alignSelf: "center" }}>Convocatoria</label>
                           <input type="date" value={nuevoProyecto.fechaConvocatoria} onChange={e => setNuevoProyecto({ ...nuevoProyecto, fechaConvocatoria: e.target.value })} />
