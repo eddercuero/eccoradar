@@ -597,9 +597,13 @@ export default function EcoRadar() {
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
   const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
   const [modoDireccionManual, setModoDireccionManual] = useState(false);
+  const [modoTipoProyectoManual, setModoTipoProyectoManual] = useState(false);
   const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
   function agregarProyecto() {
     if (!nuevoProyecto.nombre.trim()) return;
+    if (nuevoProyecto.tipo.trim() && !tiposProyectoDisponibles.includes(nuevoProyecto.tipo.trim())) {
+      setTiposProyectoDisponibles(prev => [...prev, nuevoProyecto.tipo.trim()]);
+    }
     if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
       setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
     }
@@ -608,6 +612,7 @@ export default function EcoRadar() {
     setMostrarFormProyecto(false);
     setModoEncargadoManual(false);
     setModoDireccionManual(false);
+    setModoTipoProyectoManual(false);
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
   function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
@@ -1268,6 +1273,9 @@ export default function EcoRadar() {
         .proyecto-mini-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .proyecto-mini-tipo { font-size: 11px; color: var(--dim); }
         .proyecto-mini-avance { font-family: 'Newsreader', serif; font-size: 16px; flex-shrink: 0; }
+        .proyecto-mini.terminado { padding: 8px 14px; opacity: 0.6; }
+        .proyecto-mini.terminado .proyecto-mini-nombre { font-size: 12px; font-weight: 500; }
+        .proyecto-mini.terminado .proyecto-mini-avance { font-size: 13px; color: var(--success); }
 
         .proyecto-detalle { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 22px; }
         .proyecto-detalle-cab { display: flex; justify-content: space-between; align-items: flex-start; border-left: 4px solid var(--dim); padding-left: 14px; margin-bottom: 18px; }
@@ -1295,6 +1303,11 @@ export default function EcoRadar() {
         .selector-entregables-titulo { font-size: 12px; font-weight: 600; color: var(--plomo-oscuro); margin-bottom: 12px; }
         .selector-entregables-grupo { margin-bottom: 12px; }
         .selector-entregables-cat { font-size: 11px; font-weight: 600; color: var(--dim); margin-bottom: 6px; }
+
+        .entregables-completados { margin: 12px 0; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .entregables-completados-titulo { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; }
+        .entregables-completados-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+        .entregable-chip-hecho { display: inline-flex; align-items: center; gap: 5px; background: var(--success-soft); color: var(--success); border: 1px solid rgba(30,142,79,0.25); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 500; cursor: pointer; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1649,7 +1662,17 @@ export default function EcoRadar() {
                     {mostrarFormProyecto && (
                       <div className="form-inline">
                         <input type="text" placeholder="Nombre del proyecto (ej. Redes de la Alcaldía, Revista institucional)" value={nuevoProyecto.nombre} onChange={e => setNuevoProyecto({ ...nuevoProyecto, nombre: e.target.value })} style={{ minWidth: 260 }} />
-                        <select value={nuevoProyecto.tipo} onChange={e => setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value })}>{tiposProyectoDisponibles.map(t => <option key={t}>{t}</option>)}</select>
+                        {modoTipoProyectoManual ? (
+                          <div className="campo-con-volver">
+                            <input type="text" placeholder="Tipo de proyecto" value={nuevoProyecto.tipo} onChange={e => setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value })} autoFocus />
+                            <span className="campo-volver" onClick={() => { setModoTipoProyectoManual(false); setNuevoProyecto({ ...nuevoProyecto, tipo: tiposProyectoDisponibles[0] }); }}>← elegir de la lista</span>
+                          </div>
+                        ) : (
+                          <select value={nuevoProyecto.tipo} onChange={e => { if (e.target.value === "__otro__") { setModoTipoProyectoManual(true); setNuevoProyecto({ ...nuevoProyecto, tipo: "" }); } else { setNuevoProyecto({ ...nuevoProyecto, tipo: e.target.value }); } }}>
+                            {tiposProyectoDisponibles.map(t => <option key={t}>{t}</option>)}
+                            <option value="__otro__">Otro (escribir tipo)</option>
+                          </select>
+                        )}
                         {modoDireccionManual ? (
                           <div className="campo-con-volver">
                             <input type="text" placeholder="Nombre de la dirección" value={nuevoProyecto.direccion} onChange={e => setNuevoProyecto({ ...nuevoProyecto, direccion: e.target.value })} autoFocus />
@@ -1685,16 +1708,6 @@ export default function EcoRadar() {
                         <button className="btn btn-primario btn-sm" onClick={agregarProyecto}>Crear proyecto</button>
                       </div>
                     )}
-                    {mostrarFormProyecto && (
-                      <div className="form-inline" style={{ marginTop: -4 }}>
-                        <input type="text" placeholder="+ Agregar tipo de proyecto (ej. Campaña)" value={nuevoTipoProyectoTexto} onChange={e => setNuevoTipoProyectoTexto(e.target.value)} />
-                        <button className="btn btn-sm" onClick={agregarTipoProyectoNuevo}>Agregar tipo de proyecto</button>
-                        <input type="text" placeholder="+ Agregar dirección (ej. Turismo)" value={nuevaDireccionTexto} onChange={e => setNuevaDireccionTexto(e.target.value)} />
-                        <button className="btn btn-sm" onClick={agregarDireccionNueva}>Agregar dirección</button>
-                        <input type="text" placeholder="+ Agregar tipo de entregable (ej. Podcast)" value={nuevoTipoEntregableTexto} onChange={e => setNuevoTipoEntregableTexto(e.target.value)} />
-                        <button className="btn btn-sm" onClick={agregarTipoEntregableNuevo}>Agregar tipo de entregable</button>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1713,11 +1726,11 @@ export default function EcoRadar() {
                           const s = semaforoProyecto({ ...p, avance: av });
                           const activo = p.id === seleccionado.id;
                           return (
-                            <div key={p.id} className={"proyecto-mini" + (activo ? " activo" : "")} onClick={() => setProyectoSeleccionado(p.id)}>
-                              <span className={"semaforo-punto " + s} />
+                            <div key={p.id} className={"proyecto-mini" + (activo ? " activo" : "") + (av >= 100 ? " terminado" : "")} onClick={() => setProyectoSeleccionado(p.id)}>
+                              {av >= 100 ? <CheckCircle2 style={{ width: 13, height: 13, color: "var(--success)", flexShrink: 0 }} /> : <span className={"semaforo-punto " + s} />}
                               <div className="proyecto-mini-info">
                                 <div className="proyecto-mini-nombre">{p.nombre}</div>
-                                <div className="proyecto-mini-tipo">{p.tipo}</div>
+                                {av < 100 && <div className="proyecto-mini-tipo">{p.tipo}</div>}
                               </div>
                               <div className="proyecto-mini-avance">{av}%</div>
                             </div>
@@ -1757,8 +1770,8 @@ export default function EcoRadar() {
 
                         <div className="proyecto-detalle-etiqueta" style={{ marginBottom: 8 }}>Entregables</div>
                         <div className="proyecto-entregables" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
-                          {seleccionado.entregables.map(e => {
-                            const puedeMarcar = esAdmin || e.responsable === nombreVisible;
+                          {seleccionado.entregables.filter(e => !e.completado).map(e => {
+                            const puedeMarcar = esAdmin || e.responsable === nombreVisible || seleccionado.encargado === nombreVisible;
                             return (
                               <div className="entregable-fila" key={e.id}>
                                 <div className={"entregable-check" + (e.completado ? " completado" : "")} onClick={() => puedeMarcar && alternarEntregable(seleccionado.id, e.id)}>{e.completado && <CheckCircle2 style={{ width: 11, height: 11 }} />}</div>
@@ -1768,6 +1781,21 @@ export default function EcoRadar() {
                             );
                           })}
                           {seleccionado.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
+                          {seleccionado.entregables.some(e => e.completado) && (
+                            <div className="entregables-completados">
+                              <div className="entregables-completados-titulo">Ya terminados ({seleccionado.entregables.filter(e => e.completado).length})</div>
+                              <div className="entregables-completados-chips">
+                                {seleccionado.entregables.filter(e => e.completado).map(e => {
+                                  const puedeMarcar = esAdmin || e.responsable === nombreVisible || seleccionado.encargado === nombreVisible;
+                                  return (
+                                    <div key={e.id} className="entregable-chip-hecho" onClick={() => puedeMarcar && alternarEntregable(seleccionado.id, e.id)} title="Clic para reabrir">
+                                      <CheckCircle2 style={{ width: 11, height: 11 }} /> {e.tipo}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
                           {esAdmin && (() => {
                             const formActual = entregableForm[seleccionado.id] || { tipos: [], responsable: "", fecha: "" };
                             const gruposConPersonalizados = { ...CATEGORIAS_ENTREGABLE };
@@ -1786,6 +1814,10 @@ export default function EcoRadar() {
                                     </div>
                                   </div>
                                 ))}
+                                <div className="form-inline" style={{ marginTop: 4 }}>
+                                  <input type="text" placeholder="+ Agregar producto nuevo (ej. Podcast especial)" value={nuevoTipoEntregableTexto} onChange={e => setNuevoTipoEntregableTexto(e.target.value)} />
+                                  <button className="btn btn-sm" onClick={agregarTipoEntregableNuevo}>Agregar producto</button>
+                                </div>
                                 <div className="form-inline" style={{ marginTop: 12 }}>
                                   <select value={formActual.responsable} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, responsable: e.target.value } })}>
                                     <option value="">Responsable…</option>
