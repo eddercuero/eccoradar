@@ -210,11 +210,11 @@ function VisorEnVivo({ cuenta }) {
   return <VisorEnlaceReal cuenta={cuenta} />;
 }
 
-const CALIFICACIONES_PROPIA = ["Normal", "Bajo ataque en comentarios", "Comentarios controlados", "Necesita respuesta", "Viral positivo"];
-const CALIFICACIONES_NEGATIVA = ["Nos ataca directamente", "Comparte noticias de otros", "Postura imparcial", "Sin actividad relevante", "Escalando"];
+const CALIFICACIONES_PROPIA = ["Normal", "Bajo ataque en comentarios", "Comentarios controlados", "Necesita respuesta", "Viral positivo", "No publicó hoy"];
+const CALIFICACIONES_NEGATIVA = ["Nos ataca directamente", "Comparte noticias de otros", "Postura imparcial", "Sin actividad relevante", "Escalando", "No publicó hoy"];
 const COLOR_CALIFICACION = {
   "Normal": "verde", "Comentarios controlados": "verde", "Viral positivo": "verde", "Postura imparcial": "verde", "Sin actividad relevante": "verde",
-  "Necesita respuesta": "amarillo", "Comparte noticias de otros": "amarillo",
+  "Necesita respuesta": "amarillo", "Comparte noticias de otros": "amarillo", "No publicó hoy": "amarillo",
   "Bajo ataque en comentarios": "rojo", "Nos ataca directamente": "rojo", "Escalando": "rojo",
 };
 function colorCalificacion(c) { return COLOR_CALIFICACION[c] || "amarillo"; }
@@ -481,6 +481,16 @@ export default function EcoRadar() {
   const turnosVisibles = esAdmin ? turnos : turnos.filter(t => t.persona === nombreVisible);
   const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
   const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
+  const hoyISO = reloj.toISOString().slice(0, 10);
+  const rankingPaginas = useMemo(() => {
+    return [...cuentas].map(c => {
+      const registros = c.registros || [];
+      const ultimo = registros[registros.length - 1];
+      const revisadaHoy = ultimo && ultimo.fechaISO && ultimo.fechaISO.slice(0, 10) === hoyISO;
+      const noPublico = ultimo && ultimo.calificacion === "No publicó hoy";
+      return { ...c, totalRegistros: registros.length, ultimo, revisadaHoy, noPublico };
+    }).sort((a, b) => b.totalRegistros - a.totalRegistros || (b.ultimo?.fechaISO || "").localeCompare(a.ultimo?.fechaISO || ""));
+  }, [cuentas, hoyISO]);
   const cuentasEnAlerta = cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length;
   const tareasCompletadasHoy = tareasVisibles.filter(t => t.estado === "Completado").length;
 
@@ -563,7 +573,7 @@ export default function EcoRadar() {
   }
   function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
   function agregarRegistroCuenta(cuentaId, calificacion, nota) {
-    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), calificacion, nota, registradoPor: nombreVisible };
+    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), fechaISO: reloj.toISOString(), calificacion, nota, registradoPor: nombreVisible };
     setCuentas(prev => prev.map(c => c.id === cuentaId ? { ...c, registros: [...(c.registros || []), nuevo] } : c));
   }
   function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
@@ -1529,18 +1539,41 @@ export default function EcoRadar() {
             )}
 
             {modulo === "ranking" && (
-              <div className="panel">
-                <div className="panel-titulo">Quién cumple primero y quién se atrasa</div>
-                {rankingOrdenado.map((m, i) => (
-                  <div className="ranking-fila" key={m.id}>
-                    <div className={"ranking-pos" + (i === 0 ? " top1" : "")}>{i + 1}</div>
-                    <div className="ranking-fila-info"><div className="ranking-nombre">{m.persona} <span className="meta-rol">· {m.rol}</span></div><div className="ranking-detalle">{m.entregable} — hoy {m.avanceHoy}/{m.metaHoy} · semana {m.avanceSemana}/{m.metaSemana}</div></div>
-                    <span className={"etiqueta " + (cumplimiento(m) >= 90 ? "etq-completado" : cumplimiento(m) >= 60 ? "etq-media" : "etq-alta")}>{cumplimiento(m) >= 90 ? "Al día" : cumplimiento(m) >= 60 ? "En curso" : "Atrasado"}</span>
-                    <div className="ranking-cumplimiento">{cumplimiento(m)}%</div>
-                  </div>
-                ))}
-                {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas registradas para calcular el ranking.</div>}
-              </div>
+              <>
+                <div className="panel">
+                  <div className="panel-titulo">Ranking del equipo · quién cumple primero y quién se atrasa</div>
+                  {rankingOrdenado.map((m, i) => (
+                    <div className="ranking-fila" key={m.id}>
+                      <div className={"ranking-pos" + (i === 0 ? " top1" : "")}>{i + 1}</div>
+                      <div className="ranking-fila-info"><div className="ranking-nombre">{m.persona} <span className="meta-rol">· {m.rol}</span></div><div className="ranking-detalle">{m.entregable} — hoy {m.avanceHoy}/{m.metaHoy} · semana {m.avanceSemana}/{m.metaSemana}</div></div>
+                      <span className={"etiqueta " + (cumplimiento(m) >= 90 ? "etq-completado" : cumplimiento(m) >= 60 ? "etq-media" : "etq-alta")}>{cumplimiento(m) >= 90 ? "Al día" : cumplimiento(m) >= 60 ? "En curso" : "Atrasado"}</span>
+                      <div className="ranking-cumplimiento">{cumplimiento(m)}%</div>
+                    </div>
+                  ))}
+                  {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas registradas para calcular el ranking.</div>}
+                </div>
+
+                <div className="panel">
+                  <div className="panel-titulo">Ranking de páginas monitoreadas · más revisadas primero</div>
+                  {rankingPaginas.map((c, i) => {
+                    const Icono = PLATAFORMA_ICONO[c.plataforma];
+                    return (
+                      <div className="ranking-fila" key={c.id}>
+                        <div className={"ranking-pos" + (i === 0 && c.totalRegistros > 0 ? " top1" : "")}>{i + 1}</div>
+                        <div className="ranking-fila-info">
+                          <div className="ranking-nombre"><Icono style={{ width: 13, height: 13, marginRight: 5, verticalAlign: "-2px" }} />{c.handle} <span className="meta-rol">· {c.tipo}</span></div>
+                          <div className="ranking-detalle">{c.totalRegistros} {c.totalRegistros === 1 ? "revisión registrada" : "revisiones registradas"}{c.ultimo ? " · última: " + c.ultimo.fecha : ""}</div>
+                        </div>
+                        {c.totalRegistros === 0 && <span className="etiqueta etq-media">Sin revisar aún</span>}
+                        {c.totalRegistros > 0 && c.noPublico && <span className="etiqueta etq-media">No ha publicado</span>}
+                        {c.totalRegistros > 0 && !c.noPublico && !c.revisadaHoy && <span className="etiqueta etq-baja">No revisada hoy</span>}
+                        {c.totalRegistros > 0 && !c.noPublico && c.revisadaHoy && <span className={"etiqueta " + etiquetaClaseCalificacion(c.ultimo.calificacion)}>{c.ultimo.calificacion}</span>}
+                      </div>
+                    );
+                  })}
+                  {rankingPaginas.length === 0 && <div className="campo-vacio">Aún no hay cuentas agregadas al monitoreo de redes.</div>}
+                </div>
+              </>
             )}
 
             {modulo === "redes" && (
