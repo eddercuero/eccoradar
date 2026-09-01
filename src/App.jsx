@@ -595,6 +595,25 @@ export default function EcoRadar() {
 
   const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
+  const [mostrarSelectorEntregables, setMostrarSelectorEntregables] = useState(false);
+  const [tiposNuevoProyecto, setTiposNuevoProyecto] = useState([]);
+  const [responsableNuevoProyecto, setResponsableNuevoProyecto] = useState("");
+  const [fechaEntregableNuevoProyecto, setFechaEntregableNuevoProyecto] = useState("");
+  const [entregablesArmados, setEntregablesArmados] = useState([]);
+  function alternarTipoNuevoProyecto(tipo) {
+    setTiposNuevoProyecto(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
+  }
+  function agregarEntregableArmado() {
+    if (!responsableNuevoProyecto || tiposNuevoProyecto.length === 0) return;
+    const nuevos = tiposNuevoProyecto.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: responsableNuevoProyecto, fecha: fechaEntregableNuevoProyecto, completado: false }));
+    setEntregablesArmados(prev => [...prev, ...nuevos]);
+    setTiposNuevoProyecto([]);
+    setResponsableNuevoProyecto("");
+    setFechaEntregableNuevoProyecto("");
+  }
+  function quitarEntregableArmado(id) {
+    setEntregablesArmados(prev => prev.filter(e => e.id !== id));
+  }
   const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
   const [modoDireccionManual, setModoDireccionManual] = useState(false);
   const [modoTipoProyectoManual, setModoTipoProyectoManual] = useState(false);
@@ -607,12 +626,16 @@ export default function EcoRadar() {
     if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
       setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
     }
-    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: [] }, ...proyectos]);
+    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: entregablesArmados }, ...proyectos]);
     setNuevoProyecto({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
     setMostrarFormProyecto(false);
     setModoEncargadoManual(false);
     setModoDireccionManual(false);
     setModoTipoProyectoManual(false);
+    setEntregablesArmados([]);
+    setTiposNuevoProyecto([]);
+    setResponsableNuevoProyecto("");
+    setFechaEntregableNuevoProyecto("");
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
   function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
@@ -633,6 +656,9 @@ export default function EcoRadar() {
   }
   function alternarEntregable(proyectoId, entregableId) {
     setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
+  }
+  function cambiarResponsableEntregable(proyectoId, entregableId, nuevoResponsable) {
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, responsable: nuevoResponsable } : e) }));
   }
   function eliminarEntregable(proyectoId, entregableId) {
     setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.filter(e => e.id !== entregableId) }));
@@ -1091,6 +1117,9 @@ export default function EcoRadar() {
         .proyecto-avance-num { font-family: 'Newsreader', serif; font-size: 24px; }
         .proyecto-entregables { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
         .entregable-fila { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; }
+        .entregable-responsable-select { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); font-family: inherit; color: var(--rojo); font-weight: 500; }
+        .entregable-responsable-texto { font-size: 12px; color: var(--muted); }
+        .entregable-fecha-texto { font-size: 11.5px; color: var(--dim); }
         .entregable-check { width: 16px; height: 16px; border-radius: 4px; border: 1px solid var(--border); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
         .entregable-check.completado { background: var(--success); border-color: var(--success); color: #fff; }
         .entregable-texto.completado { text-decoration: line-through; color: var(--dim); }
@@ -1265,7 +1294,9 @@ export default function EcoRadar() {
         .campo-volver { font-size: 11px; color: var(--rojo); cursor: pointer; white-space: nowrap; }
 
         .proyectos-lista-minimizada { margin-bottom: 18px; }
-        .proyectos-lista-minimizada-titulo { font-size: 11.5px; color: var(--dim); margin-bottom: 8px; font-style: italic; }
+        .proyectos-lista-minimizada-titulo { font-size: 13px; color: var(--muted); margin-bottom: 12px; font-style: italic; }
+        .proyectos-lista-minimizada .chip { font-size: 15px; padding: 12px 20px; gap: 10px; font-weight: 500; }
+        .proyectos-lista-minimizada .semaforo-punto { width: 11px; height: 11px; }
 
         .proyectos-layout { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
         .proyectos-lista { display: flex; flex-direction: column; gap: 8px; }
@@ -1311,6 +1342,9 @@ export default function EcoRadar() {
         .entregables-completados-titulo { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; }
         .entregables-completados-chips { display: flex; flex-wrap: wrap; gap: 6px; }
         .entregable-chip-hecho { display: inline-flex; align-items: center; gap: 5px; background: var(--success-soft); color: var(--success); border: 1px solid rgba(30,142,79,0.25); border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 500; cursor: pointer; }
+
+        .entregables-armados { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border); }
+        .entregable-chip-armado { display: inline-flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--border-strong); color: var(--rojo); border-radius: 20px; padding: 4px 6px 4px 10px; font-size: 11px; font-weight: 500; }
         .registro-item-cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
@@ -1666,6 +1700,10 @@ export default function EcoRadar() {
                           setModoTipoProyectoManual(false);
                           setModoDireccionManual(false);
                           setModoEncargadoManual(false);
+                          setEntregablesArmados([]);
+                          setTiposNuevoProyecto([]);
+                          setResponsableNuevoProyecto("");
+                          setFechaEntregableNuevoProyecto("");
                         }
                         setMostrarFormProyecto(!mostrarFormProyecto);
                       }}><Plus /> Nuevo proyecto</button>
@@ -1716,7 +1754,53 @@ export default function EcoRadar() {
                           <label style={{ fontSize: 11, color: "var(--muted)", alignSelf: "center" }}>Entrega</label>
                           <input type="date" value={nuevoProyecto.fechaEntrega} onChange={e => setNuevoProyecto({ ...nuevoProyecto, fechaEntrega: e.target.value })} />
                         </div>
-                        <button className="btn btn-primario btn-sm" onClick={agregarProyecto}>Crear proyecto</button>
+
+                        <div className="selector-entregables">
+                          <div className="selector-entregables-titulo">Productos que se van a entregar en este proyecto (opcional, puedes agregar más después)</div>
+                          {Object.entries(CATEGORIAS_ENTREGABLE).map(([categoria, tipos]) => (
+                            <div key={categoria} className="selector-entregables-grupo">
+                              <div className="selector-entregables-cat">{categoria}</div>
+                              <div className="chips">
+                                {tipos.map(t => <div key={t} className={"chip" + (tiposNuevoProyecto.includes(t) ? " activo" : "")} onClick={() => alternarTipoNuevoProyecto(t)}>{t}</div>)}
+                              </div>
+                            </div>
+                          ))}
+                          {tiposEntregableDisponibles.filter(t => categoriaDeEntregable(t) === "✏️ Personalizados").length > 0 && (
+                            <div className="selector-entregables-grupo">
+                              <div className="selector-entregables-cat">✏️ Personalizados</div>
+                              <div className="chips">
+                                {tiposEntregableDisponibles.filter(t => categoriaDeEntregable(t) === "✏️ Personalizados").map(t => <div key={t} className={"chip" + (tiposNuevoProyecto.includes(t) ? " activo" : "")} onClick={() => alternarTipoNuevoProyecto(t)}>{t}</div>)}
+                              </div>
+                            </div>
+                          )}
+                          <div className="form-inline" style={{ marginTop: 4 }}>
+                            <input type="text" placeholder="+ Agregar producto nuevo (ej. Podcast especial)" value={nuevoTipoEntregableTexto} onChange={e => setNuevoTipoEntregableTexto(e.target.value)} />
+                            <button className="btn btn-sm" onClick={agregarTipoEntregableNuevo}>Agregar producto</button>
+                          </div>
+                          <div className="form-inline" style={{ marginTop: 12 }}>
+                            <select value={responsableNuevoProyecto} onChange={e => setResponsableNuevoProyecto(e.target.value)}>
+                              <option value="">Responsable de estos productos…</option>
+                              {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                            </select>
+                            <input type="date" value={fechaEntregableNuevoProyecto} onChange={e => setFechaEntregableNuevoProyecto(e.target.value)} />
+                            <button className="btn btn-primario btn-sm" onClick={agregarEntregableArmado}><Plus /> Sumar al proyecto {tiposNuevoProyecto.length > 0 ? `(${tiposNuevoProyecto.length})` : ""}</button>
+                          </div>
+                          {entregablesArmados.length > 0 && (
+                            <div className="entregables-armados">
+                              <div className="entregables-completados-titulo">Ya agregados a este proyecto ({entregablesArmados.length})</div>
+                              <div className="entregables-completados-chips">
+                                {entregablesArmados.map(e => (
+                                  <div key={e.id} className="entregable-chip-armado">
+                                    {e.tipo} — {e.responsable}
+                                    <IconCerrar style={{ width: 11, height: 11, cursor: "pointer" }} onClick={() => quitarEntregableArmado(e.id)} />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        <button className="btn btn-primario btn-sm" style={{ marginTop: 14 }} onClick={agregarProyecto}>Crear proyecto {entregablesArmados.length > 0 ? `con ${entregablesArmados.length} entregables` : ""}</button>
                       </div>
                     )}
                   </div>
@@ -1750,7 +1834,7 @@ export default function EcoRadar() {
                           const s = semaforoProyecto({ ...p, avance: av });
                           const activo = p.id === seleccionado.id;
                           return (
-                            <div key={p.id} className={"proyecto-mini" + (activo ? " activo" : "") + (av >= 100 ? " terminado" : "")} onClick={() => setProyectoSeleccionado(p.id)}>
+                            <div key={p.id} className={"proyecto-mini" + (activo ? " activo" : "") + (av >= 100 ? " terminado" : "")} onClick={() => { setProyectoSeleccionado(p.id); setMostrarSelectorEntregables(false); }}>
                               {av >= 100 ? <CheckCircle2 style={{ width: 13, height: 13, color: "var(--success)", flexShrink: 0 }} /> : <span className={"semaforo-punto " + s} />}
                               <div className="proyecto-mini-info">
                                 <div className="proyecto-mini-nombre">{p.nombre}</div>
@@ -1792,14 +1876,27 @@ export default function EcoRadar() {
                         </div>
                         <div className="barra-fondo" style={{ height: 8, margin: "6px 0 18px" }}><div className="barra-relleno" style={{ width: avance + "%", background: sem === "rojo" ? "var(--rojo)" : sem === "amarillo" ? "var(--warning)" : "var(--success)" }} /></div>
 
-                        <div className="proyecto-detalle-etiqueta" style={{ marginBottom: 8 }}>Entregables</div>
+                        <div className="proyecto-detalle-etiqueta" style={{ marginBottom: 8, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          Entregables
+                          {esAdmin && <button className="btn btn-sm" onClick={() => setMostrarSelectorEntregables(!mostrarSelectorEntregables)}><Plus /> {mostrarSelectorEntregables ? "Cerrar" : "Agregar entregables"}</button>}
+                        </div>
                         <div className="proyecto-entregables" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
                           {seleccionado.entregables.filter(e => !e.completado).map(e => {
                             const puedeMarcar = esAdmin || e.responsable === nombreVisible || seleccionado.encargado === nombreVisible;
+                            const puedeReasignar = esAdmin || seleccionado.encargado === nombreVisible;
                             return (
                               <div className="entregable-fila" key={e.id}>
                                 <div className={"entregable-check" + (e.completado ? " completado" : "")} onClick={() => puedeMarcar && alternarEntregable(seleccionado.id, e.id)}>{e.completado && <CheckCircle2 style={{ width: 11, height: 11 }} />}</div>
-                                <span className={"entregable-texto" + (e.completado ? " completado" : "")}>{e.tipo} — {e.responsable}{e.fecha ? " · " + e.fecha : ""}</span>
+                                <span className="entregable-texto">{e.tipo}</span>
+                                {puedeReasignar ? (
+                                  <select className="entregable-responsable-select" value={e.responsable} onChange={ev => cambiarResponsableEntregable(seleccionado.id, e.id, ev.target.value)}>
+                                    <option value="">Sin asignar</option>
+                                    {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
+                                  </select>
+                                ) : (
+                                  <span className="entregable-responsable-texto">{e.responsable || "Sin asignar"}</span>
+                                )}
+                                {e.fecha && <span className="entregable-fecha-texto">· {e.fecha}</span>}
                                 {esAdmin && <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer", marginLeft: "auto" }} onClick={() => eliminarEntregable(seleccionado.id, e.id)} />}
                               </div>
                             );
@@ -1820,7 +1917,7 @@ export default function EcoRadar() {
                               </div>
                             </div>
                           )}
-                          {esAdmin && (() => {
+                          {esAdmin && mostrarSelectorEntregables && (() => {
                             const formActual = entregableForm[seleccionado.id] || { tipos: [], responsable: "", fecha: "" };
                             const gruposConPersonalizados = { ...CATEGORIAS_ENTREGABLE };
                             const personalizados = tiposEntregableDisponibles.filter(t => categoriaDeEntregable(t) === "✏️ Personalizados");
@@ -1848,7 +1945,7 @@ export default function EcoRadar() {
                                     {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre}</option>)}
                                   </select>
                                   <input type="date" value={formActual.fecha} onChange={e => setEntregableForm({ ...entregableForm, [seleccionado.id]: { ...formActual, fecha: e.target.value } })} />
-                                  <button className="btn btn-primario btn-sm" onClick={() => agregarEntregable(seleccionado.id)}><Plus /> Agregar {formActual.tipos.length > 0 ? `(${formActual.tipos.length})` : ""}</button>
+                                  <button className="btn btn-primario btn-sm" onClick={() => { agregarEntregable(seleccionado.id); setMostrarSelectorEntregables(false); }}><Plus /> Agregar {formActual.tipos.length > 0 ? `(${formActual.tipos.length})` : ""}</button>
                                 </div>
                               </div>
                             );
