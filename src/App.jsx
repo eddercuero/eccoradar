@@ -133,6 +133,41 @@ function diaDeHoyNombre(fecha) {
   const mapa = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
   return mapa[fecha.getDay()];
 }
+function diaSiguienteNombre(fecha) {
+  const d = new Date(fecha);
+  d.setDate(d.getDate() + 1);
+  return diaDeHoyNombre(d);
+}
+function calcularScore100(persona, hoyNombre, mananaNombre, metas, proyectos) {
+  const tareasHoy = (persona.tareasFrecuentes || []).filter(t => t.dia === hoyNombre);
+  const metaHoy = tareasHoy.reduce((a, t) => a + t.cantidad, 0);
+  const avanceHoy = tareasHoy.reduce((a, t) => a + t.avance, 0);
+  const pctCumplimiento = metaHoy > 0 ? Math.min(1, avanceHoy / metaHoy) : 0;
+  const cumplimiento = Math.round(pctCumplimiento * 40);
+
+  const metasPersona = metas.filter(m => m.persona === persona.nombre);
+  const pctImpacto = metasPersona.length ? metasPersona.reduce((a, m) => a + pct(m.avanceSemana, m.metaSemana), 0) / metasPersona.length / 100 : 0;
+  const impacto = Math.round(pctImpacto * 20);
+
+  const proyectosPersona = proyectos.filter(p => p.entregables.some(e => e.responsable === persona.nombre));
+  let entregablesTotal = 0, entregablesHechos = 0;
+  proyectosPersona.forEach(p => p.entregables.filter(e => e.responsable === persona.nombre).forEach(e => { entregablesTotal++; if (e.completado) entregablesHechos++; }));
+  const pctEvidencias = entregablesTotal > 0 ? entregablesHechos / entregablesTotal : pctCumplimiento;
+  const evidencias = Math.round(pctEvidencias * 15);
+
+  const tiempoRespuesta = avanceHoy > 0 ? 10 : 0;
+  const coordinacion = proyectosPersona.length > 0 ? 10 : 0;
+  const tareasManana = (persona.tareasFrecuentes || []).filter(t => t.dia === mananaNombre);
+  const planificacion = tareasManana.length > 0 ? 5 : 0;
+
+  const total = cumplimiento + impacto + evidencias + tiempoRespuesta + coordinacion + planificacion;
+  return { cumplimiento, impacto, evidencias, tiempoRespuesta, coordinacion, planificacion, total, tieneDatos: metaHoy > 0 || metasPersona.length > 0 || proyectosPersona.length > 0 };
+}
+function colorScore(total) {
+  if (total < 60) return "rojo";
+  if (total < 80) return "amarillo";
+  return "verde";
+}
 function CirculoProgreso({ pct, size = 58, color = "var(--rojo)" }) {
   const r = (size - 8) / 2;
   const c = 2 * Math.PI * r;
@@ -504,6 +539,87 @@ function ModoTV({ personas, tareas, metas, unidades, onSalir }) {
 }
 
 /* ---------- nodo recursivo del organigrama ---------- */
+
+function ModalReporteUnidad({ unidad, responsable, reportesHoy, onClose, onValidarClave, onGuardar }) {
+  const [clave, setClave] = useState("");
+  const [desbloqueado, setDesbloqueado] = useState(false);
+  const [error, setError] = useState("");
+  const [autor, setAutor] = useState(responsable || "");
+  const [actividades, setActividades] = useState([]);
+  const [nuevaActividad, setNuevaActividad] = useState("");
+  const [notas, setNotas] = useState("");
+
+  function intentarIngresar() {
+    if (onValidarClave(clave)) { setDesbloqueado(true); setError(""); }
+    else setError("Clave incorrecta. Usa la clave maestra (000) o tu clave personal.");
+  }
+  function agregarActividad() {
+    if (!nuevaActividad.trim()) return;
+    setActividades([...actividades, nuevaActividad.trim()]);
+    setNuevaActividad("");
+  }
+  function guardarReporte() {
+    onGuardar(autor, actividades, notas);
+    onClose();
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-feed" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <div className="modal-feed-header">
+          <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Gauge /></div><div><div className="modal-feed-nombre">Reportar el día</div><div className="modal-feed-sub">{unidad}</div></div></div>
+          <IconCerrar className="modal-feed-cerrar" onClick={onClose} />
+        </div>
+        <div className="modal-feed-body" style={{ padding: 18 }}>
+          {!desbloqueado ? (
+            <>
+              <div className="campo-form" style={{ marginBottom: 10 }}>
+                <label>Clave de acceso</label>
+                <input type="password" value={clave} onChange={e => setClave(e.target.value)} onKeyDown={e => e.key === "Enter" && intentarIngresar()} placeholder="Clave maestra 000 o tu clave personal" autoFocus />
+              </div>
+              {error && <div className="auth-error">{error}</div>}
+              <button className="btn btn-primario btn-sm" onClick={intentarIngresar}>Ingresar</button>
+              <div className="aviso-simulado" style={{ marginTop: 10 }}>La clave maestra (000) funciona para todos por ahora — cuando cada quien tenga su rutina, mejor que use su propia clave personal.</div>
+            </>
+          ) : (
+            <>
+              <div className="campo-form" style={{ marginBottom: 10 }}>
+                <label>¿Quién está reportando?</label>
+                <input type="text" value={autor} onChange={e => setAutor(e.target.value)} placeholder="Tu nombre" />
+              </div>
+              <div className="campo-form" style={{ marginBottom: 10 }}>
+                <label>Actividades adicionales de hoy (aparte de las 6 de rutina)</label>
+                <div className="form-inline" style={{ marginBottom: 6 }}>
+                  <input type="text" placeholder="Ej. Cobertura especial en territorio" value={nuevaActividad} onChange={e => setNuevaActividad(e.target.value)} onKeyDown={e => e.key === "Enter" && agregarActividad()} />
+                  <button className="btn btn-sm" onClick={agregarActividad}><Plus /></button>
+                </div>
+                {actividades.map((a, i) => <div key={i} className="ficha-item-fila"><span>{a}</span><IconCerrar style={{ width: 11, height: 11, cursor: "pointer" }} onClick={() => setActividades(actividades.filter((_, j) => j !== i))} /></div>)}
+              </div>
+              <div className="campo-form">
+                <label>Notas al pie para el equipo (cómo va, qué falta)</label>
+                <input type="text" value={notas} onChange={e => setNotas(e.target.value)} placeholder="Ej. Falta aprobación de Dircom para publicar" />
+              </div>
+              <button className="btn btn-primario btn-sm" style={{ marginTop: 12 }} onClick={guardarReporte}>Guardar reporte de hoy</button>
+
+              {reportesHoy.length > 0 && (
+                <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px dashed var(--border)" }}>
+                  <div className="proyecto-detalle-etiqueta">Reportes de hoy en {unidad}</div>
+                  {reportesHoy.map(r => (
+                    <div key={r.id} className="ficha-item-fila" style={{ alignItems: "flex-start", flexDirection: "column", gap: 3 }}>
+                      <span style={{ fontWeight: 700 }}>{r.autor} <span style={{ fontWeight: 400, color: "var(--dim)" }}>· {r.hora}</span></span>
+                      {r.actividadesAdicionales.length > 0 && <span style={{ fontSize: 11.5 }}>Adicional: {r.actividadesAdicionales.join(", ")}</span>}
+                      {r.notas && <span style={{ fontSize: 11.5, fontStyle: "italic" }}>"{r.notas}"</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ModalContenido({ item, onClose, onCambiarEstado, onEliminar, personasEquipo, onCambiarResponsable }) {
   return (
@@ -962,8 +1078,34 @@ function EstilosGlobales() {
         .mando-unidad-card:hover { border-color: var(--border-strong); }
         .mando-unidad-card.sin-clic { cursor: default; }
         .mando-unidad-card.sin-clic:hover { border-color: var(--border); }
+        .mando-responsable-select { width: 100%; font-size: 10.5px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-family: inherit; }
+        .apoyo-fila { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .apoyo-fila-info { flex: 1; min-width: 0; }
+
+        .mando-personas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+        .mando-persona-card { display: flex; flex-direction: column; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; }
+        .mando-persona-card.editable { cursor: pointer; }
+        .mando-persona-card.editable:hover { border-color: var(--border-strong); }
+        .mando-persona-cab { display: flex; align-items: center; gap: 10px; }
+        .mando-persona-detalle { font-size: 10.5px; color: var(--muted); margin-top: 8px; display: flex; flex-direction: column; gap: 2px; }
+        .mando-persona-editor { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); cursor: default; }
         .mando-unidad-nombre { font-size: 12.5px; font-weight: 700; }
         .mando-unidad-detalle { font-size: 10.5px; color: var(--dim); }
+
+        .score100-promedio { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px dashed var(--border); }
+        .score100-promedio-num { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 24px; }
+        .score100-promedio-label { font-size: 11.5px; color: var(--muted); }
+        .score100-leyenda { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; font-size: 10.5px; color: var(--muted); }
+        .score100-leyenda span { display: flex; align-items: center; gap: 5px; }
+        .score100-punto { display: inline-block; width: 8px; height: 8px; border-radius: 2px; }
+        .score100-fila { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .score100-nombre { font-size: 12.5px; font-weight: 700; width: 180px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .score100-barra { flex: 1; height: 16px; border-radius: 4px; overflow: hidden; display: flex; background: var(--surface-2); border: 1px solid var(--border); }
+        .score100-total { width: 54px; text-align: right; font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 18px; flex-shrink: 0; }
+        .score100-total.rojo { color: var(--rojo); }
+        .score100-total.amarillo { color: var(--warning); }
+        .score100-total.verde { color: var(--success); }
+        .score100-excelencia { color: #D4AF37; margin-left: 2px; }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
@@ -1111,6 +1253,8 @@ export default function EcoRadar() {
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
   const [canalesContenidoDisponibles, setCanalesContenidoDisponibles] = useState(() => cargar("eco_gad_canales_contenido", CANALES_CONTENIDO_SEED));
+  const [responsablesUnidad, setResponsablesUnidad] = useState(() => cargar("eco_gad_responsables_unidad", {}));
+  const [reportesDiarios, setReportesDiarios] = useState(() => cargar("eco_gad_reportes_diarios", []));
   const [contenidoPlan, setContenidoPlan] = useState(() => cargar("eco_gad_contenido_plan", []));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
   const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
@@ -1133,6 +1277,9 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
   useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
   useEffect(() => guardar("eco_gad_canales_contenido", canalesContenidoDisponibles), [canalesContenidoDisponibles]);
+  useEffect(() => guardar("eco_gad_responsables_unidad", responsablesUnidad), [responsablesUnidad]);
+  useEffect(() => guardar("eco_gad_reportes_diarios", reportesDiarios), [reportesDiarios]);
+  useEffect(() => guardar("eco_gad_solicitudes_apoyo", solicitudesApoyo), [solicitudesApoyo]);
   useEffect(() => guardar("eco_gad_contenido_plan", contenidoPlan), [contenidoPlan]);
   useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
   useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
@@ -1399,8 +1546,35 @@ export default function EcoRadar() {
   const [nuevoCanalTexto, setNuevoCanalTexto] = useState("");
   const [mostrarFormContenido, setMostrarFormContenido] = useState(false);
   const [contenidoAbierto, setContenidoAbierto] = useState(null);
+  const [unidadReportando, setUnidadReportando] = useState(null);
+  const [personaExpandidaMando, setPersonaExpandidaMando] = useState(null);
+  const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar("eco_gad_solicitudes_apoyo", []));
+  const [mostrarFormApoyo, setMostrarFormApoyo] = useState(false);
+  const [nuevaSolicitudApoyo, setNuevaSolicitudApoyo] = useState({ unidadSolicitante: "", autor: "", unidadDestino: "", descripcion: "" });
   const [semanaOffsetContenido, setSemanaOffsetContenido] = useState(0);
   const [nuevoContenido, setNuevoContenido] = useState({ canal: CANALES_CONTENIDO_SEED[0], fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "", area: AREAS[0], formato: FORMATOS_CONTENIDO[0], tipoPieza: TIPOS_PIEZA[0], presupuesto: "" });
+  function agregarSolicitudApoyo() {
+    if (!nuevaSolicitudApoyo.unidadSolicitante || !nuevaSolicitudApoyo.unidadDestino || !nuevaSolicitudApoyo.descripcion.trim()) return;
+    setSolicitudesApoyo([{ id: Date.now(), ...nuevaSolicitudApoyo, fecha: hoyISO, hora: reloj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }), estado: "Pendiente" }, ...solicitudesApoyo]);
+    setNuevaSolicitudApoyo({ unidadSolicitante: "", autor: "", unidadDestino: "", descripcion: "" });
+    setMostrarFormApoyo(false);
+  }
+  function marcarSolicitudAtendida(id) {
+    setSolicitudesApoyo(solicitudesApoyo.map(s => s.id === id ? { ...s, estado: s.estado === "Atendida" ? "Pendiente" : "Atendida" } : s));
+  }
+  function eliminarSolicitudApoyo(id) { setSolicitudesApoyo(solicitudesApoyo.filter(s => s.id !== id)); }
+
+  function asignarResponsableUnidad(unidad, nombre) {
+    setResponsablesUnidad(prev => ({ ...prev, [unidad]: nombre }));
+  }
+  function claveValidaParaUnidad(unidad, claveIngresada) {
+    if (claveIngresada === "000") return true;
+    return personas.some(p => (p.unidad || UNIDADES_SEED[0]) === unidad && p.clave === claveIngresada);
+  }
+  function agregarReporteDiario(unidad, autor, actividadesAdicionales, notas) {
+    setReportesDiarios(prev => [{ id: Date.now(), unidad, fecha: hoyISO, autor: autor || responsablesUnidad[unidad] || "Sin nombre", actividadesAdicionales, notas, hora: reloj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }) }, ...prev]);
+  }
+
   function agregarCanalContenidoNuevo() {
     const v = nuevoCanalTexto.trim();
     if (!v || canalesContenidoDisponibles.includes(v)) return;
@@ -1814,13 +1988,54 @@ export default function EcoRadar() {
                   </div>
 
                   <div className="panel">
+                    <div className="panel-titulo">
+                      🆘 Solicitudes de apoyo entre equipos
+                      <button className="btn btn-primario btn-sm" onClick={() => { setMostrarFormApoyo(!mostrarFormApoyo); setNuevaSolicitudApoyo({ unidadSolicitante: unidadesDisponibles[0] || "", autor: nombreVisible, unidadDestino: "", descripcion: "" }); }}><Plus /> Necesito apoyo</button>
+                    </div>
+                    {mostrarFormApoyo && (
+                      <div className="form-card">
+                        <div className="form-grid">
+                          <div className="campo-form"><label>Mi equipo</label><select value={nuevaSolicitudApoyo.unidadSolicitante} onChange={e => setNuevaSolicitudApoyo({ ...nuevaSolicitudApoyo, unidadSolicitante: e.target.value })}>{unidadesDisponibles.map(u => <option key={u}>{u}</option>)}</select></div>
+                          <div className="campo-form"><label>Necesito apoyo de</label><select value={nuevaSolicitudApoyo.unidadDestino} onChange={e => setNuevaSolicitudApoyo({ ...nuevaSolicitudApoyo, unidadDestino: e.target.value })}><option value="">Selecciona…</option>{unidadesDisponibles.map(u => <option key={u}>{u}</option>)}</select></div>
+                          <div className="campo-form"><label>Tu nombre</label><input type="text" value={nuevaSolicitudApoyo.autor} onChange={e => setNuevaSolicitudApoyo({ ...nuevaSolicitudApoyo, autor: e.target.value })} /></div>
+                          <div className="campo-form" style={{ gridColumn: "span 2" }}><label>¿Qué necesitas?</label><input type="text" placeholder="Ej. Fotógrafo para cobertura de las 15h00" value={nuevaSolicitudApoyo.descripcion} onChange={e => setNuevaSolicitudApoyo({ ...nuevaSolicitudApoyo, descripcion: e.target.value })} /></div>
+                        </div>
+                        <button className="btn btn-primario btn-sm" style={{ marginTop: 12 }} onClick={agregarSolicitudApoyo}>Enviar solicitud</button>
+                      </div>
+                    )}
+                    {solicitudesApoyo.filter(s => s.fecha === hoyISO).length === 0 && <div className="campo-vacio">Sin solicitudes de apoyo hoy.</div>}
+                    {solicitudesApoyo.filter(s => s.fecha === hoyISO).map(s => (
+                      <div key={s.id} className="apoyo-fila">
+                        <span className="etiqueta etq-baja">{s.unidadSolicitante}</span>
+                        <span style={{ color: "var(--dim)" }}>→</span>
+                        <span className="etiqueta etq-baja">{s.unidadDestino}</span>
+                        <div className="apoyo-fila-info">
+                          <div className="contenido-campana">{s.descripcion}</div>
+                          <div className="contenido-detalle-texto">Pedido por {s.autor} · {s.hora}</div>
+                        </div>
+                        <span className={"etiqueta fila-clic " + (s.estado === "Atendida" ? "etq-completado" : "etq-pendiente")} onClick={() => marcarSolicitudAtendida(s.id)}>{s.estado}</span>
+                        {esAdmin && <Trash2 style={{ width: 13, height: 13, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarSolicitudApoyo(s.id)} />}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="panel">
                     <div className="panel-titulo">Cómo va cada dirección/equipo hoy</div>
                     <div className="mando-unidades-grid">
                       {unidadesConGente.map(u => (
-                        <div key={u.unidad} className={"mando-unidad-card" + (esAdmin ? "" : " sin-clic")} onClick={() => { if (esAdmin) { setUnidadActual(u.unidad); setModulo("roles"); } }}>
+                        <div key={u.unidad} className="mando-unidad-card sin-clic">
                           <CirculoProgreso pct={u.pct} size={56} color={u.pct >= 80 ? "var(--success)" : u.pct >= 40 ? "var(--warning)" : "var(--rojo)"} />
-                          <div className="mando-unidad-nombre">{u.unidad}</div>
+                          <div className="mando-unidad-nombre" onClick={() => { if (esAdmin) { setUnidadActual(u.unidad); setModulo("roles"); } }} style={{ cursor: esAdmin ? "pointer" : "default" }}>{u.unidad}</div>
                           <div className="mando-unidad-detalle">{u.personasCumplidas}/{u.personasConTareas} al día · {u.gente} personas</div>
+                          {esAdmin ? (
+                            <select className="mando-responsable-select" value={responsablesUnidad[u.unidad] || ""} onChange={e => asignarResponsableUnidad(u.unidad, e.target.value)}>
+                              <option value="">Sin responsable asignado</option>
+                              {personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === u.unidad).map(p => <option key={p.id} value={p.nombre}>{p.nombre}</option>)}
+                            </select>
+                          ) : (
+                            <div className="mando-unidad-detalle">{responsablesUnidad[u.unidad] ? "Responsable: " + responsablesUnidad[u.unidad] : "Sin responsable asignado"}</div>
+                          )}
+                          <button className="btn btn-sm" style={{ marginTop: 4 }} onClick={() => setUnidadReportando(u.unidad)}><Plus /> Reportar el día</button>
                         </div>
                       ))}
                       {unidadesConGente.length === 0 && <div className="campo-vacio">Agrega equipos en RRHH para verlos aquí.</div>}
@@ -1847,6 +2062,67 @@ export default function EcoRadar() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="panel">
+                    <div className="panel-titulo">Qué está haciendo cada uno hoy · comunicación integral</div>
+                    <div className="aviso-simulado" style={{ marginTop: -6, marginBottom: 14 }}>Clic en tu propia tarjeta (o cualquiera si eres administrador) para agregar o quitar funciones del día.</div>
+                    <div className="mando-personas-grid">
+                      {personasEquipo.map(p => {
+                        const est = estadoDeHoy(p, hoyISO);
+                        const tareasHoyP = (p.tareasFrecuentes || []).filter(t => t.dia === hoyNombre);
+                        const metaP = tareasHoyP.reduce((a, t) => a + t.cantidad, 0);
+                        const avanceP = tareasHoyP.reduce((a, t) => a + t.avance, 0);
+                        const pctP = metaP > 0 ? (avanceP / metaP) * 100 : 0;
+                        const contenidoP = contenidoPlan.filter(c => c.responsable === p.nombre && c.fecha === hoyISO);
+                        const proyectosP = proyectosDe(p);
+                        const puedeEditar = esAdmin || p.nombre === nombreVisible;
+                        const expandida = personaExpandidaMando === p.id;
+                        const keyFormHoy = p.id + "-" + hoyNombre;
+                        const formHoy = formTareaFrecDia[keyFormHoy] || { tarea: "", cantidad: 1 };
+                        return (
+                          <div key={p.id} className={"mando-persona-card" + (puedeEditar ? " editable" : "")} onClick={() => puedeEditar && setPersonaExpandidaMando(expandida ? null : p.id)}>
+                            <div className="mando-persona-cab">
+                              <div className="ficha-avatar" style={{ cursor: "default", width: 34, height: 34 }}>{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="equipo-hoy-nombre" style={{ textAlign: "left" }}>{p.nombre}</div>
+                                <div className="equipo-hoy-rol" style={{ textAlign: "left" }}>{p.rol} · {p.unidad || UNIDADES_SEED[0]}</div>
+                              </div>
+                              {metaP > 0 && <CirculoProgreso pct={pctP} size={38} color={pctP >= 100 ? "var(--success)" : "var(--rojo)"} />}
+                            </div>
+                            <span className={"etiqueta estado-" + est.color} style={{ marginTop: 6 }}>{est.texto === "Trabajando" ? "📍 " + (p.modalidadTrabajo || "Oficina") : est.texto}</span>
+                            {est.texto === "Trabajando" && !expandida && (
+                              <div className="mando-persona-detalle">
+                                {tareasHoyP.length > 0 && <div>{avanceP}/{metaP} tareas de hoy</div>}
+                                {contenidoP.length > 0 && <div>{contenidoP.length} contenido{contenidoP.length > 1 ? "s" : ""} hoy</div>}
+                                {proyectosP.length > 0 && <div>{proyectosP.length} proyecto{proyectosP.length > 1 ? "s" : ""} activo{proyectosP.length > 1 ? "s" : ""}</div>}
+                                {tareasHoyP.length === 0 && contenidoP.length === 0 && proyectosP.length === 0 && <div style={{ color: "var(--dim)" }}>Sin actividad registrada hoy</div>}
+                              </div>
+                            )}
+                            {expandida && (
+                              <div className="mando-persona-editor" onClick={e => e.stopPropagation()}>
+                                <div className="dia-tareas-chips" style={{ marginLeft: 0, marginBottom: 8 }}>
+                                  {tareasHoyP.map(t => (
+                                    <span key={t.id} className={"tarea-dia-chip" + (t.avance >= t.cantidad ? " completa" : "")} onClick={() => incrementarAvanceTareaFrec(p.id, t.id)} title="Clic para sumar avance">
+                                      {t.avance}/{t.cantidad} {t.tarea}
+                                      <IconCerrar style={{ width: 9, height: 9 }} onClick={e => { e.stopPropagation(); eliminarTareaFrecPersona(p.id, t.id); }} />
+                                    </span>
+                                  ))}
+                                  {tareasHoyP.length === 0 && <span style={{ fontSize: 11, color: "var(--dim)" }}>Sin funciones para hoy todavía.</span>}
+                                </div>
+                                <div className="dia-tareas-agregar" style={{ marginLeft: 0 }}>
+                                  <input type="text" placeholder="+ función (ej. reels)" value={formHoy.tarea} onChange={e => setFormTareaFrecDia({ ...formTareaFrecDia, [keyFormHoy]: { ...formHoy, tarea: e.target.value } })} />
+                                  <input type="number" min="1" value={formHoy.cantidad} onChange={e => setFormTareaFrecDia({ ...formTareaFrecDia, [keyFormHoy]: { ...formHoy, cantidad: e.target.value } })} />
+                                  <button className="btn btn-sm" onClick={() => agregarTareaFrecDia(p.id, hoyNombre)}><Plus /></button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {personasEquipo.length === 0 && <div className="campo-vacio">Agrega personas en RRHH para verlas aquí.</div>}
+                    </div>
+                  </div>
+
                   <div className="aviso-simulado" style={{ marginBottom: 18 }}>Este centro de mando reúne en un solo lugar lo que cada persona va llenando en Equipo/RRHH, Contenido, Proyectos, Redes y Ranking — se actualiza solo, sin que nadie tenga que avisar por aparte.</div>
                 </>
               );
@@ -2407,27 +2683,67 @@ export default function EcoRadar() {
               </>
             )}
 
-            {modulo === "ranking" && (
-              <>
-                <div className="panel">
-                  <div className="panel-titulo panel-titulo-app">Ranking del equipo · quién cumple primero y quién se atrasa</div>
-                  {rankingOrdenado.map((m, i) => (
-                    <div className="ranking-fila" key={m.id}>
-                      <div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
-                      <div className="ranking-fila-info"><div className="ranking-nombre">{m.persona} <span className="meta-rol">· {m.rol}</span></div><div className="ranking-detalle">{m.entregable} — hoy {m.avanceHoy}/{m.metaHoy} · semana {m.avanceSemana}/{m.metaSemana}</div></div>
-                      <span className={"etiqueta " + (cumplimiento(m) >= 90 ? "etq-completado" : cumplimiento(m) >= 60 ? "etq-media" : "etq-alta")}>{cumplimiento(m) >= 90 ? "Al día" : cumplimiento(m) >= 60 ? "En curso" : "Atrasado"}</span>
-                      <div className="ranking-cumplimiento">{cumplimiento(m)}%</div>
+            {modulo === "ranking" && (() => {
+              const hoyNombreScore = diaDeHoyNombre(reloj);
+              const mananaNombreScore = diaSiguienteNombre(reloj);
+              const scores = personasEquipo.map(p => ({ persona: p, score: calcularScore100(p, hoyNombreScore, mananaNombreScore, metas, proyectos) }))
+                .filter(s => s.score.tieneDatos)
+                .sort((a, b) => b.score.total - a.score.total);
+              const promedioGeneral = scores.length ? Math.round(scores.reduce((a, s) => a + s.score.total, 0) / scores.length) : 0;
+              return (
+                <>
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Score 100 · cumplimiento, impacto, evidencias, tiempo, coordinación y planificación</div>
+                    <div className="score100-promedio">
+                      <CirculoProgreso pct={promedioGeneral} size={64} color={"var(--" + (colorScore(promedioGeneral) === "rojo" ? "rojo" : colorScore(promedioGeneral) === "amarillo" ? "warning" : "success") + ")"} />
+                      <div><div className="score100-promedio-num">{promedioGeneral}/100</div><div className="score100-promedio-label">Promedio del equipo hoy</div></div>
                     </div>
-                  ))}
-                  {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas registradas para calcular el ranking.</div>}
-                </div>
+                    <div className="score100-leyenda">
+                      <span><i className="score100-punto" style={{ background: "var(--rojo)" }} /> Cumplimiento (40)</span>
+                      <span><i className="score100-punto" style={{ background: "var(--steel)" }} /> Impacto (20)</span>
+                      <span><i className="score100-punto" style={{ background: "var(--warning)" }} /> Evidencias (15)</span>
+                      <span><i className="score100-punto" style={{ background: "#8B5CF6" }} /> Tiempo (10)</span>
+                      <span><i className="score100-punto" style={{ background: "var(--success)" }} /> Coordinación (10)</span>
+                      <span><i className="score100-punto" style={{ background: "var(--dim)" }} /> Planificación (5)</span>
+                    </div>
+                    {scores.map(({ persona, score }, i) => (
+                      <div key={persona.id} className="score100-fila">
+                        <div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
+                        <div className="score100-nombre">{persona.nombre} <span className="meta-rol">· {persona.rol}</span></div>
+                        <div className="score100-barra">
+                          <div style={{ width: (score.cumplimiento / 40 * 100) + "%", background: "var(--rojo)" }} title={"Cumplimiento: " + score.cumplimiento + "/40"} />
+                          <div style={{ width: (score.impacto / 20 * 100) + "%", background: "var(--steel)" }} title={"Impacto: " + score.impacto + "/20"} />
+                          <div style={{ width: (score.evidencias / 15 * 100) + "%", background: "var(--warning)" }} title={"Evidencias: " + score.evidencias + "/15"} />
+                          <div style={{ width: (score.tiempoRespuesta / 10 * 100) + "%", background: "#8B5CF6" }} title={"Tiempo: " + score.tiempoRespuesta + "/10"} />
+                          <div style={{ width: (score.coordinacion / 10 * 100) + "%", background: "var(--success)" }} title={"Coordinación: " + score.coordinacion + "/10"} />
+                          <div style={{ width: (score.planificacion / 5 * 100) + "%", background: "var(--dim)" }} title={"Planificación: " + score.planificacion + "/5"} />
+                        </div>
+                        <div className={"score100-total " + colorScore(score.total)}>{score.total}{score.total >= 90 && <span className="score100-excelencia">★</span>}</div>
+                      </div>
+                    ))}
+                    {scores.length === 0 && <div className="campo-vacio">Aún no hay suficientes datos (tareas, metas o proyectos) para calcular el Score 100 de nadie.</div>}
+                    <div className="aviso-simulado" style={{ marginTop: 10 }}>Cumplimiento es exacto (tareas de hoy). Impacto usa el avance de metas semanales. Evidencias usa entregables de proyectos completados. Tiempo, coordinación y planificación son aproximaciones honestas hasta que construyamos el registro de evidencia por tarea (el siguiente paso que quedó pendiente).</div>
+                  </div>
 
-                <div className="panel">
-                  <div className="panel-titulo panel-titulo-app">Ranking de páginas monitoreadas · más revisadas primero</div>
-                  {rankingPaginas.map((c, i) => {
-                    const Icono = PLATAFORMA_ICONO[c.plataforma];
-                    return (
-                      <div className="ranking-fila" key={c.id}>
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Ranking del equipo · quién cumple primero y quién se atrasa</div>
+                    {rankingOrdenado.map((m, i) => (
+                      <div className="ranking-fila" key={m.id}>
+                        <div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
+                        <div className="ranking-fila-info"><div className="ranking-nombre">{m.persona} <span className="meta-rol">· {m.rol}</span></div><div className="ranking-detalle">{m.entregable} — hoy {m.avanceHoy}/{m.metaHoy} · semana {m.avanceSemana}/{m.metaSemana}</div></div>
+                        <span className={"etiqueta " + (cumplimiento(m) >= 90 ? "etq-completado" : cumplimiento(m) >= 60 ? "etq-media" : "etq-alta")}>{cumplimiento(m) >= 90 ? "Al día" : cumplimiento(m) >= 60 ? "En curso" : "Atrasado"}</span>
+                        <div className="ranking-cumplimiento">{cumplimiento(m)}%</div>
+                      </div>
+                    ))}
+                    {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas registradas para calcular el ranking.</div>}
+                  </div>
+
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Ranking de páginas monitoreadas · más revisadas primero</div>
+                    {rankingPaginas.map((c, i) => {
+                      const Icono = PLATAFORMA_ICONO[c.plataforma];
+                      return (
+                        <div className="ranking-fila" key={c.id}>
                         <div className={"ranking-pos" + (c.totalRegistros === 0 ? "" : i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
                         <div className="ranking-fila-info">
                           <div className="ranking-nombre"><Icono style={{ width: 13, height: 13, marginRight: 5, verticalAlign: "-2px" }} />{c.handle} <span className="meta-rol">· {c.tipo}</span></div>
@@ -2443,7 +2759,8 @@ export default function EcoRadar() {
                   {rankingPaginas.length === 0 && <div className="campo-vacio">Aún no hay cuentas agregadas al monitoreo de redes.</div>}
                 </div>
               </>
-            )}
+              );
+            })()}
 
             {modulo === "redes" && (
               <>
@@ -2859,6 +3176,17 @@ export default function EcoRadar() {
             )}
           </main>
         </>
+      )}
+
+      {unidadReportando && (
+        <ModalReporteUnidad
+          unidad={unidadReportando}
+          responsable={responsablesUnidad[unidadReportando]}
+          reportesHoy={reportesDiarios.filter(r => r.unidad === unidadReportando && r.fecha === hoyISO)}
+          onClose={() => setUnidadReportando(null)}
+          onValidarClave={(clave) => claveValidaParaUnidad(unidadReportando, clave)}
+          onGuardar={(autor, actividades, notas) => agregarReporteDiario(unidadReportando, autor, actividades, notas)}
+        />
       )}
 
       {contenidoAbierto && (() => {
