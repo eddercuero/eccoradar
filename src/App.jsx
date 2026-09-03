@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -77,6 +77,7 @@ const TAREAS_SUGERIDAS = {
 
 const NAV = [
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
+  { id: "contenido", label: "Contenido", icon: Megaphone },
   { id: "equipo", label: "Equipo y tareas", icon: Users },
   { id: "metas", label: "Metas y objetivos", icon: Target },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban },
@@ -113,15 +114,34 @@ function generarTareasFrecuentesPorDefecto(rol) {
   const tareas = TAREAS_DEFAULT_POR_CATEGORIA[categoria];
   if (!tareas) return [];
   const dias = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-  return tareas.map((tarea, i) => ({ id: Date.now() + i, dia: dias[i], tarea }));
+  return tareas.map((tarea, i) => ({ id: Date.now() + i, dia: dias[i], tarea, cantidad: 1, avance: 0 }));
+}
+function diaDeHoyNombre(fecha) {
+  const mapa = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+  return mapa[fecha.getDay()];
+}
+function CirculoProgreso({ pct, size = 58, color = "var(--rojo)" }) {
+  const r = (size - 8) / 2;
+  const c = 2 * Math.PI * r;
+  const offset = c - (Math.min(100, pct) / 100) * c;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ flexShrink: 0 }}>
+      <circle cx={size / 2} cy={size / 2} r={r} stroke="var(--border)" strokeWidth="6" fill="none" />
+      <circle cx={size / 2} cy={size / 2} r={r} stroke={color} strokeWidth="6" fill="none" strokeDasharray={c} strokeDashoffset={offset} strokeLinecap="round" transform={`rotate(-90 ${size / 2} ${size / 2})`} style={{ transition: "stroke-dashoffset 0.3s" }} />
+      <text x="50%" y="50%" textAnchor="middle" dy="0.35em" fontSize="12" fontWeight="800" fill="var(--text)" fontFamily="'IBM Plex Sans', sans-serif">{Math.round(pct)}%</text>
+    </svg>
+  );
 }
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
 const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
+const CANALES_CONTENIDO_SEED = ["Alcaldía", "Autoridad", "Patronato", "Bomberos", "Comunicación Externa"];
+const REDES_CONTENIDO = ["Facebook", "Instagram", "X", "TikTok", "YouTube", "Otro"];
+const ESTADOS_CONTENIDO = ["Por hacer", "Programado", "Publicado"];
 
 function accesoPorRol(rol, forzarAdmin) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["resumen", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
-  if (rol === "Encargado") return ["resumen", "equipo", "metas", "proyectos", "ranking", "calendario"];
-  return ["equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
+  if (rol === "Encargado") return ["resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
+  return ["contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
 }
 
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
@@ -843,7 +863,23 @@ function EstilosGlobales() {
         .ficha-avatar-editar svg { width: 9px; height: 9px; color: #fff; }
         .ficha-nombre { font-size: 13.5px; font-weight: 600; }
         .ficha-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-        .ficha-detalle { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
+        .ficha-detalle-full { padding: 16px; border-top: 1px solid var(--border); background: var(--surface-2); }
+        .ficha-detalle-dos-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--border); }
+        .horario-dia-fila-completa { border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 8px; }
+        .dia-tareas-chips { display: flex; flex-wrap: wrap; gap: 5px; margin-left: 8px; }
+        .tarea-dia-chip { display: inline-flex; align-items: center; gap: 4px; background: var(--warning-soft); color: var(--warning); border-radius: 20px; padding: 3px 8px; font-size: 10.5px; font-weight: 600; cursor: pointer; }
+        .tarea-dia-chip.completa { background: var(--success-soft); color: var(--success); }
+        .dia-tareas-agregar { display: flex; gap: 6px; margin-top: 6px; margin-left: 36px; }
+        .dia-tareas-agregar input[type=text] { flex: 1; max-width: 220px; padding: 5px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-family: inherit; }
+        .dia-tareas-agregar input[type=number] { width: 46px; padding: 5px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-family: inherit; }
+
+        .contenido-fecha-grupo { margin-bottom: 18px; }
+        .contenido-fecha-titulo { font-size: 12px; font-weight: 800; text-transform: capitalize; color: var(--rojo); margin-bottom: 8px; padding-bottom: 5px; border-bottom: 2px solid var(--rojo-soft); }
+        .contenido-fila { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+        .contenido-fila-info { flex: 1; min-width: 0; }
+        .contenido-campana { font-size: 13px; font-weight: 700; }
+        .contenido-hook { font-weight: 400; color: var(--muted); font-style: italic; }
+        .contenido-detalle-texto { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
@@ -860,7 +896,7 @@ function EstilosGlobales() {
         .equipo-hoy-modalidad { font-size: 10px; color: var(--muted); margin-top: 2px; }
         .chip-sm { padding: 3px 9px; font-size: 10px; }
         .horario-semana { display: flex; flex-direction: column; gap: 6px; }
-        .horario-dia-fila { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+        .horario-dia-fila { display: flex; align-items: center; gap: 8px; font-size: 11.5px; flex-wrap: wrap; }
         .horario-dia-nombre { width: 28px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
         .horario-dia-fila input[type=time] { padding: 4px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-family: inherit; width: 88px; }
         .horario-dia-libre { color: var(--dim); font-style: italic; }
@@ -990,6 +1026,8 @@ export default function EcoRadar() {
   });
   const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
   const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
+  const [canalesContenidoDisponibles, setCanalesContenidoDisponibles] = useState(() => cargar("eco_gad_canales_contenido", CANALES_CONTENIDO_SEED));
+  const [contenidoPlan, setContenidoPlan] = useState(() => cargar("eco_gad_contenido_plan", []));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
   const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
     const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
@@ -1010,6 +1048,8 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
   useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
   useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_canales_contenido", canalesContenidoDisponibles), [canalesContenidoDisponibles]);
+  useEffect(() => guardar("eco_gad_contenido_plan", contenidoPlan), [contenidoPlan]);
   useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
   useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
   useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
@@ -1105,6 +1145,9 @@ export default function EcoRadar() {
   const [filtroArea, setFiltroArea] = useState("Todas");
   const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
   const personasEquipo = personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
+  function proyectosDe(persona) {
+    return proyectos.filter(pr => pr.encargado === persona.nombre || pr.entregables.some(e => e.responsable === persona.nombre));
+  }
   const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
   function agregarTarea() {
     if (!nuevaTarea.tarea.trim() || !nuevaTarea.responsable) return;
@@ -1267,6 +1310,32 @@ export default function EcoRadar() {
     setUnidadActual(v);
     setNuevaUnidadTexto("");
   }
+
+  const [filtroCanalContenido, setFiltroCanalContenido] = useState("Todos");
+  const [nuevoCanalTexto, setNuevoCanalTexto] = useState("");
+  const [mostrarFormContenido, setMostrarFormContenido] = useState(false);
+  const [nuevoContenido, setNuevoContenido] = useState({ canal: CANALES_CONTENIDO_SEED[0], fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "" });
+  function agregarCanalContenidoNuevo() {
+    const v = nuevoCanalTexto.trim();
+    if (!v || canalesContenidoDisponibles.includes(v)) return;
+    setCanalesContenidoDisponibles([...canalesContenidoDisponibles, v]);
+    setFiltroCanalContenido(v);
+    setNuevoCanalTexto("");
+  }
+  function agregarContenido() {
+    if (!nuevoContenido.fecha || !nuevoContenido.campana.trim()) return;
+    setContenidoPlan([{ id: Date.now(), ...nuevoContenido, estado: "Por hacer" }, ...contenidoPlan]);
+    setNuevoContenido({ canal: nuevoContenido.canal, fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "" });
+    setMostrarFormContenido(false);
+  }
+  function eliminarContenido(id) { setContenidoPlan(contenidoPlan.filter(c => c.id !== id)); }
+  function cambiarEstadoContenido(id) {
+    setContenidoPlan(contenidoPlan.map(c => {
+      if (c.id !== id) return c;
+      const i = ESTADOS_CONTENIDO.indexOf(c.estado);
+      return { ...c, estado: ESTADOS_CONTENIDO[(i + 1) % ESTADOS_CONTENIDO.length] };
+    }));
+  }
   function eliminarUnidad(nombre) {
     if (UNIDADES_SEED.includes(nombre)) return;
     setUnidadesDisponibles(prev => prev.filter(u => u !== nombre));
@@ -1317,7 +1386,7 @@ export default function EcoRadar() {
   }
 
   const [fichaAbierta, setFichaAbierta] = useState(null);
-  const [formTareaFrec, setFormTareaFrec] = useState({});
+  const [formTareaFrecDia, setFormTareaFrecDia] = useState({});
 
   function subirFoto(personaId, file) {
     if (!file) return;
@@ -1345,11 +1414,15 @@ export default function EcoRadar() {
   function cambiarModalidadTrabajo(personaId, valor) {
     setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, modalidadTrabajo: valor } : p));
   }
-  function agregarTareaFrecPersona(personaId) {
-    const f = formTareaFrec[personaId];
+  function agregarTareaFrecDia(personaId, dia) {
+    const key = personaId + "-" + dia;
+    const f = formTareaFrecDia[key];
     if (!f || !f.tarea || !f.tarea.trim()) return;
-    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, tareasFrecuentes: [...(p.tareasFrecuentes || []), { id: Date.now(), dia: f.dia || "Lunes", tarea: f.tarea }] } : p));
-    setFormTareaFrec({ ...formTareaFrec, [personaId]: { dia: "Lunes", tarea: "" } });
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, tareasFrecuentes: [...(p.tareasFrecuentes || []), { id: Date.now(), dia, tarea: f.tarea, cantidad: Number(f.cantidad) || 1, avance: 0 }] } : p));
+    setFormTareaFrecDia({ ...formTareaFrecDia, [key]: { tarea: "", cantidad: 1 } });
+  }
+  function incrementarAvanceTareaFrec(personaId, tareaId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.map(t => t.id === tareaId ? { ...t, avance: Math.min(t.cantidad, t.avance + 1) } : t) }));
   }
   function eliminarTareaFrecPersona(personaId, itemId) {
     setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.filter(t => t.id !== itemId) }));
@@ -1636,6 +1709,84 @@ export default function EcoRadar() {
                 </div>
               </>
             )}
+
+            {modulo === "contenido" && (() => {
+              const canalesConTodos = ["Todos", ...canalesContenidoDisponibles];
+              const visiblesContenido = filtroCanalContenido === "Todos" ? contenidoPlan : contenidoPlan.filter(c => c.canal === filtroCanalContenido);
+              const totalContenido = visiblesContenido.length;
+              const publicados = visiblesContenido.filter(c => c.estado === "Publicado").length;
+              const programados = visiblesContenido.filter(c => c.estado === "Programado").length;
+              const porHacer = visiblesContenido.filter(c => c.estado === "Por hacer").length;
+              const pctAvanceContenido = totalContenido > 0 ? Math.round((publicados / totalContenido) * 100) : 0;
+              const agrupadoPorFecha = {};
+              [...visiblesContenido].sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(c => {
+                if (!agrupadoPorFecha[c.fecha]) agrupadoPorFecha[c.fecha] = [];
+                agrupadoPorFecha[c.fecha].push(c);
+              });
+              return (
+                <>
+                  <div className="kpis">
+                    <div className="kpi acento-acero"><div className="kpi-valor">{totalContenido}</div><div className="kpi-label">Piezas planificadas</div></div>
+                    <div className="kpi acento-exito"><div className="kpi-valor">{publicados}</div><div className="kpi-label">Publicadas</div></div>
+                    <div className="kpi acento-plomo"><div className="kpi-valor">{programados + porHacer}</div><div className="kpi-label">Pendientes</div></div>
+                    <div className="kpi acento-rojo"><div className="kpi-valor">{pctAvanceContenido}%</div><div className="kpi-label">Avance del plan</div></div>
+                  </div>
+
+                  <div className="panel">
+                    <div className="panel-titulo">¿De qué página o autoridad es este plan?</div>
+                    <div className="chips">
+                      {canalesConTodos.map(c => <div key={c} className={"chip" + (filtroCanalContenido === c ? " activo" : "")} onClick={() => setFiltroCanalContenido(c)}>{c}</div>)}
+                    </div>
+                    <div className="form-inline" style={{ marginBottom: 0 }}>
+                      <input type="text" placeholder="+ Agregar página/autoridad (ej. Turismo)" value={nuevoCanalTexto} onChange={e => setNuevoCanalTexto(e.target.value)} />
+                      <button className="btn btn-sm" onClick={agregarCanalContenidoNuevo}><Plus /> Agregar</button>
+                    </div>
+                    <div className="aviso-simulado">Alcaldía, Autoridad, Patronato, Bomberos y Comunicación Externa ya vienen listos — agrega los que falten (medios aliados, internos, externos, lo que necesites).</div>
+                  </div>
+
+                  <div className="panel">
+                    <div className="panel-titulo">
+                      Plan de contenido {filtroCanalContenido !== "Todos" ? "· " + filtroCanalContenido : "· todos los canales"}
+                      <button className="btn btn-primario btn-sm" onClick={() => { setMostrarFormContenido(!mostrarFormContenido); setNuevoContenido({ ...nuevoContenido, canal: filtroCanalContenido !== "Todos" ? filtroCanalContenido : canalesContenidoDisponibles[0] }); }}><Plus /> Agregar al plan</button>
+                    </div>
+                    {mostrarFormContenido && (
+                      <div className="form-card">
+                        <div className="form-grid">
+                          <div className="campo-form"><label>¿Para quién es?</label><select value={nuevoContenido.canal} onChange={e => setNuevoContenido({ ...nuevoContenido, canal: e.target.value })}>{canalesContenidoDisponibles.map(c => <option key={c}>{c}</option>)}</select></div>
+                          <div className="campo-form"><label>Fecha de subida</label><input type="date" value={nuevoContenido.fecha} onChange={e => setNuevoContenido({ ...nuevoContenido, fecha: e.target.value })} /></div>
+                          <div className="campo-form"><label>Red social</label><select value={nuevoContenido.redSocial} onChange={e => setNuevoContenido({ ...nuevoContenido, redSocial: e.target.value })}>{REDES_CONTENIDO.map(r => <option key={r}>{r}</option>)}</select></div>
+                          <div className="campo-form"><label>Nombre de la campaña</label><input type="text" placeholder="Ej. Manta Ciudad del Deporte" value={nuevoContenido.campana} onChange={e => setNuevoContenido({ ...nuevoContenido, campana: e.target.value })} /></div>
+                          <div className="campo-form"><label>Hook / gancho</label><input type="text" placeholder="Ej. ¿Sabías que...?" value={nuevoContenido.hook} onChange={e => setNuevoContenido({ ...nuevoContenido, hook: e.target.value })} /></div>
+                          <div className="campo-form"><label>Idea de video/pieza</label><input type="text" placeholder="Ej. Timelapse de la obra" value={nuevoContenido.ideaVideo} onChange={e => setNuevoContenido({ ...nuevoContenido, ideaVideo: e.target.value })} /></div>
+                          <div className="campo-form" style={{ gridColumn: "span 2" }}><label>Texto / copy</label><input type="text" placeholder="Texto que va a llevar la publicación" value={nuevoContenido.texto} onChange={e => setNuevoContenido({ ...nuevoContenido, texto: e.target.value })} /></div>
+                          <div className="campo-form"><label>Responsable</label><select value={nuevoContenido.responsable} onChange={e => setNuevoContenido({ ...nuevoContenido, responsable: e.target.value })}><option value="">Sin asignar</option>{personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre} — {pe.rol}</option>)}</select></div>
+                        </div>
+                        <button className="btn btn-primario btn-sm" style={{ marginTop: 12 }} onClick={agregarContenido}>Agregar al plan</button>
+                      </div>
+                    )}
+
+                    {Object.keys(agrupadoPorFecha).length === 0 && <div className="campo-vacio">Aún no hay contenido planificado{filtroCanalContenido !== "Todos" ? " para " + filtroCanalContenido : ""}.</div>}
+                    {Object.entries(agrupadoPorFecha).map(([fecha, items]) => (
+                      <div key={fecha} className="contenido-fecha-grupo">
+                        <div className="contenido-fecha-titulo">{new Date(fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div>
+                        {items.map(c => (
+                          <div key={c.id} className="contenido-fila">
+                            <span className="etiqueta etq-baja">{c.canal}</span>
+                            <span className="etiqueta etq-baja">{c.redSocial}</span>
+                            <div className="contenido-fila-info">
+                              <div className="contenido-campana">{c.campana}{c.hook && <span className="contenido-hook"> — "{c.hook}"</span>}</div>
+                              <div className="contenido-detalle-texto">{c.texto}{c.ideaVideo ? (c.texto ? " · " : "") + "Video: " + c.ideaVideo : ""}{c.responsable ? " · Responsable: " + c.responsable : ""}</div>
+                            </div>
+                            <span className={"etiqueta fila-clic " + (c.estado === "Publicado" ? "etq-completado" : c.estado === "Programado" ? "etq-progreso" : "etq-pendiente")} onClick={() => cambiarEstadoContenido(c.id)}>{c.estado}</span>
+                            <Trash2 style={{ width: 13, height: 13, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarContenido(c.id)} />
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
 
             {modulo === "equipo" && (
               <>
@@ -2320,7 +2471,12 @@ export default function EcoRadar() {
                   )}
                   <div className="aviso-simulado" style={{ marginTop: -6, marginBottom: 14 }}>La plantilla trae las columnas Nombre, Codigo, Clave, Rol, Area, Modalidad, JefeDirecto — llénala y súbela para agregar varias personas de una sola vez a {unidadActual}. Los roles y modalidades que agregues quedan guardados para siempre, no se borran.</div>
 
-                  {personasUnidad.map(p => (
+                  {personasUnidad.map(p => {
+                    const tareasHoyPersona = (p.tareasFrecuentes || []).filter(t => t.dia === diaDeHoyNombre(reloj));
+                    const metaHoyPersona = tareasHoyPersona.reduce((a, t) => a + t.cantidad, 0);
+                    const avanceHoyPersona = tareasHoyPersona.reduce((a, t) => a + t.avance, 0);
+                    const pctHoyPersona = metaHoyPersona > 0 ? (avanceHoyPersona / metaHoyPersona) * 100 : 0;
+                    return (
                     <div className="ficha-card" key={p.id}>
                       <div className="ficha-cab">
                         <label className="ficha-avatar">
@@ -2337,19 +2493,28 @@ export default function EcoRadar() {
                             ))}
                           </div>
                         </div>
+                        {metaHoyPersona > 0 && (
+                          <div style={{ textAlign: "center" }}>
+                            <CirculoProgreso pct={pctHoyPersona} color={pctHoyPersona >= 100 ? "var(--success)" : "var(--rojo)"} />
+                            <div style={{ fontSize: 9.5, color: "var(--dim)", marginTop: 2, textTransform: "uppercase", letterSpacing: 0.3 }}>Meta de hoy</div>
+                          </div>
+                        )}
                         <button className="btn btn-sm" onClick={() => setFichaAbierta(fichaAbierta === p.id ? null : p.id)}>{fichaAbierta === p.id ? "Cerrar" : "Ver ficha"}</button>
                         {p.id !== usuarioActual?.id && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarPersona(p.id)} />}
                       </div>
 
                       {fichaAbierta === p.id && (
-                        <div className="ficha-detalle">
-                          <div className="ficha-columna">
-                            <div className="ficha-subtitulo"><CalendarClock style={{ width: 13, height: 13 }} /> Horario semanal</div>
-                            <div className="horario-semana">
-                              {DIAS_SEMANA_H.map(dia => {
-                                const info = (p.horarioSemana || horarioSemanaDefault())[dia];
-                                return (
-                                  <div key={dia} className="horario-dia-fila">
+                        <div className="ficha-detalle-full">
+                          <div className="ficha-subtitulo"><CalendarClock style={{ width: 13, height: 13 }} /> Horario semanal y tareas del día</div>
+                          <div className="horario-semana">
+                            {DIAS_SEMANA_H.map(dia => {
+                              const info = (p.horarioSemana || horarioSemanaDefault())[dia];
+                              const tareasDia = (p.tareasFrecuentes || []).filter(t => t.dia === dia);
+                              const keyForm = p.id + "-" + dia;
+                              const formDia = formTareaFrecDia[keyForm] || { tarea: "", cantidad: 1 };
+                              return (
+                                <div key={dia} className="horario-dia-fila-completa">
+                                  <div className="horario-dia-fila">
                                     <div className={"switch" + (info.trabaja ? " on" : "")} onClick={() => actualizarHorarioDia(p.id, dia, "trabaja", !info.trabaja)}><div className="bolita" /></div>
                                     <span className="horario-dia-nombre">{dia.slice(0, 3)}</span>
                                     {info.trabaja ? (
@@ -2360,47 +2525,63 @@ export default function EcoRadar() {
                                         <CopyCheck style={{ width: 14, height: 14, color: "var(--rojo)", cursor: "pointer", flexShrink: 0 }} title="Aplicar este horario a toda la semana" onClick={() => aplicarHorarioATodos(p.id, dia)} />
                                       </>
                                     ) : <span className="horario-dia-libre">Libre</span>}
+                                    <div className="dia-tareas-chips">
+                                      {tareasDia.map(t => (
+                                        <span key={t.id} className={"tarea-dia-chip" + (t.avance >= t.cantidad ? " completa" : "")} onClick={() => incrementarAvanceTareaFrec(p.id, t.id)} title="Clic para sumar avance">
+                                          {t.avance}/{t.cantidad} {t.tarea}
+                                          <IconCerrar style={{ width: 9, height: 9 }} onClick={e => { e.stopPropagation(); eliminarTareaFrecPersona(p.id, t.id); }} />
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
-                                );
-                              })}
-                            </div>
-                            <div className="aviso-simulado" style={{ marginTop: 8 }}>Clic en el ícono junto a un día para aplicar ese mismo horario a toda la semana — luego puedes cambiar cualquier día si es distinto.</div>
+                                  <div className="dia-tareas-agregar">
+                                    <input type="text" placeholder="+ tarea (ej. videos)" value={formDia.tarea} onChange={e => setFormTareaFrecDia({ ...formTareaFrecDia, [keyForm]: { ...formDia, tarea: e.target.value } })} />
+                                    <input type="number" min="1" value={formDia.cantidad} onChange={e => setFormTareaFrecDia({ ...formTareaFrecDia, [keyForm]: { ...formDia, cantidad: e.target.value } })} />
+                                    <button className="btn btn-sm" onClick={() => agregarTareaFrecDia(p.id, dia)}><Plus /></button>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="ficha-columna">
-                            <div className="ficha-subtitulo"><Repeat style={{ width: 13, height: 13 }} /> Tareas frecuentes (rutina semanal)</div>
-                            {(p.tareasFrecuentes || []).map(t => (<div className="ficha-item-fila" key={t.id}><span>{t.dia}: {t.tarea}</span><Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarTareaFrecPersona(p.id, t.id)} /></div>))}
-                            {(p.tareasFrecuentes || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin tareas frecuentes registradas.</div>}
-                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 0 }}>
-                              <select value={(formTareaFrec[p.id] || {}).dia || "Lunes"} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), dia: e.target.value } })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
-                              <input type="text" placeholder="Ej. 3 videos" value={(formTareaFrec[p.id] || {}).tarea || ""} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), tarea: e.target.value } })} />
-                              <button className="btn btn-sm" onClick={() => agregarTareaFrecPersona(p.id)}><Plus /></button>
-                            </div>
-                          </div>
-                          <div className="ficha-columna">
-                            <div className="ficha-subtitulo">🌴 Vacaciones y permisos</div>
-                            {(p.ausencias || []).map(a => (
-                              <div className="ficha-item-fila" key={a.id}>
-                                <span><span className={"estado-punto estado-punto-" + (COLOR_AUSENCIA[a.tipo] || "gris")} />{a.tipo}: {a.fechaInicio}{a.fechaFin && a.fechaFin !== a.fechaInicio ? " a " + a.fechaFin : ""}{a.motivo ? " — " + a.motivo : ""}</span>
-                                <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarAusenciaPersona(p.id, a.id)} />
+
+                          <div className="ficha-detalle-dos-cols">
+                            <div className="ficha-columna">
+                              <div className="ficha-subtitulo">🌴 Vacaciones y permisos</div>
+                              {(p.ausencias || []).map(a => (
+                                <div className="ficha-item-fila" key={a.id}>
+                                  <span><span className={"estado-punto estado-punto-" + (COLOR_AUSENCIA[a.tipo] || "gris")} />{a.tipo}: {a.fechaInicio}{a.fechaFin && a.fechaFin !== a.fechaInicio ? " a " + a.fechaFin : ""}{a.motivo ? " — " + a.motivo : ""}</span>
+                                  <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarAusenciaPersona(p.id, a.id)} />
+                                </div>
+                              ))}
+                              {(p.ausencias || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin vacaciones ni permisos registrados.</div>}
+                              <div className="form-inline" style={{ marginTop: 8, marginBottom: 4 }}>
+                                <select value={(formAusencia[p.id] || {}).tipo || TIPOS_AUSENCIA[0]} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), tipo: e.target.value } })}>{TIPOS_AUSENCIA.map(t => <option key={t}>{t}</option>)}</select>
                               </div>
-                            ))}
-                            {(p.ausencias || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin vacaciones ni permisos registrados.</div>}
-                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 4 }}>
-                              <select value={(formAusencia[p.id] || {}).tipo || TIPOS_AUSENCIA[0]} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), tipo: e.target.value } })}>{TIPOS_AUSENCIA.map(t => <option key={t}>{t}</option>)}</select>
+                              <div className="form-inline" style={{ marginBottom: 4 }}>
+                                <input type="date" value={(formAusencia[p.id] || {}).fechaInicio || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaInicio: e.target.value } })} />
+                                <input type="date" value={(formAusencia[p.id] || {}).fechaFin || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaFin: e.target.value } })} />
+                              </div>
+                              <div className="form-inline" style={{ marginBottom: 0 }}>
+                                <input type="text" placeholder="Motivo (opcional)" value={(formAusencia[p.id] || {}).motivo || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), motivo: e.target.value } })} />
+                                <button className="btn btn-sm" onClick={() => agregarAusenciaPersona(p.id)}><Plus /> Registrar</button>
+                              </div>
+                              <div className="aviso-simulado" style={{ marginTop: 10 }}>Faltas y atrasos reales (marcados con reloj, no a mano) son un siguiente paso — necesitan el módulo de Asistencia que hablamos, todavía no está construido.</div>
                             </div>
-                            <div className="form-inline" style={{ marginBottom: 4 }}>
-                              <input type="date" value={(formAusencia[p.id] || {}).fechaInicio || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaInicio: e.target.value } })} />
-                              <input type="date" value={(formAusencia[p.id] || {}).fechaFin || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaFin: e.target.value } })} />
-                            </div>
-                            <div className="form-inline" style={{ marginBottom: 0 }}>
-                              <input type="text" placeholder="Motivo (opcional)" value={(formAusencia[p.id] || {}).motivo || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), motivo: e.target.value } })} />
-                              <button className="btn btn-sm" onClick={() => agregarAusenciaPersona(p.id)}><Plus /> Registrar</button>
+                            <div className="ficha-columna">
+                              <div className="ficha-subtitulo">📁 Proyectos asignados</div>
+                              {proyectosDe(p).map(pr => (
+                                <div className="ficha-item-fila" key={pr.id}>
+                                  <span>{pr.nombre} <span className="etiqueta etq-baja" style={{ marginLeft: 4 }}>{pr.encargado === p.nombre ? "Encargado/a" : "Colabora"}</span></span>
+                                </div>
+                              ))}
+                              {proyectosDe(p).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin proyectos asignados por ahora.</div>}
                             </div>
                           </div>
                         </div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                   {personasUnidad.length === 0 && <div className="campo-vacio">Aún no hay nadie en {unidadActual}.</div>}
                   <div className="aviso-simulado">Estos códigos y claves son de nivel prototipo (viven en el navegador) — funcionan para controlar el acceso del día a día, pero no son un sistema de autenticación seguro para datos sensibles.</div>
                 </div>
