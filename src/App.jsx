@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -76,6 +76,7 @@ const TAREAS_SUGERIDAS = {
 };
 
 const NAV = [
+  { id: "mando", label: "Centro de Mando", icon: Gauge },
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "contenido", label: "Contenido", icon: Megaphone },
   { id: "equipo", label: "Equipo y tareas", icon: Users },
@@ -92,9 +93,15 @@ const CATEGORIAS_ROLES = {
   "🏛️ Nivel Directivo y Estratégico": [ROL_DIRECTORA, "Gerente / Jefe de Comunicación"],
   "🤝 Comunicación Corporativa e Institucional": ["Responsable de Relaciones con los Medios / Jefe de Prensa", "Responsable de Comunicación de Crisis", "Director/a de Relaciones Institucionales / Asuntos Públicos", "Responsable de RSC / Sostenibilidad"],
   "📋 Comunicación Interna": ["Responsable de Comunicación Interna", "Técnico de Comunicación Interna"],
-  "💻 Digital, Social Media y Contenido": ["Digital Communication Manager", "Social Media Manager", "Community Manager", "Especialista en SEO y Contenido", "Diseñador Gráfico / Editor de Video"],
+  "💻 Digital, Social Media y Contenido": ["Digital Communication Manager", "Social Media Manager", "Especialista en SEO y Contenido", "Diseñador Gráfico / Editor de Video"],
   "🎤 Relaciones Públicas y Eventos": ["Responsable de Eventos y Protocolo", "Relaciones Públicas (PR Specialist)"],
   "🔍 Perfiles Técnicos y de Soporte": ["Analista de Comunicación / Consultor de Clipping", "Redactor / Copywriter", "Encargado"],
+  "📢 Publicidad y BTL": ["Responsable de Publicidad y Pauta", "Ejecutor/a BTL (activaciones en calle)"],
+  "🌎 Relaciones Públicas Nacionales": ["Responsable de RRPP Nacionales", "Enlace con medios nacionales"],
+  "📦 Distribución de Contenido": ["Responsable de Distribución de Contenido"],
+  "💬 Community Management": ["Community Manager"],
+  "☎️ Call Center y Atención Ciudadana": ["Agente de Call Center", "Coordinador/a de Call Center"],
+  "🛡️ Refuerzo de Defensas": ["Responsable de Refuerzo de Defensas (respuesta a ataques)"],
 };
 const ROLES_SEED = Object.values(CATEGORIAS_ROLES).flat();
 function categoriaDeRol(rol) {
@@ -108,6 +115,12 @@ const TAREAS_DEFAULT_POR_CATEGORIA = {
   "💻 Digital, Social Media y Contenido": ["Publicaciones diarias en redes sociales", "Responder comentarios y mensajes", "Diseño de piezas gráficas", "Monitoreo de métricas de redes", "Producción de videos / reels", "Planificación de contenido semanal"],
   "🎤 Relaciones Públicas y Eventos": ["Coordinación logística de eventos", "Elaboración de guion / escaleta", "Gestión de invitaciones y protocolo", "Cobertura de eventos institucionales", "Seguimiento a alianzas estratégicas", "Reporte post-evento"],
   "🔍 Perfiles Técnicos y de Soporte": ["Monitoreo de prensa y redes", "Elaboración de reportes de clipping", "Redacción de discursos y textos oficiales", "Apoyo en informes de gestión", "Archivo y organización de material de prensa", "Revisión de contenidos antes de publicación"],
+  "📢 Publicidad y BTL": ["Revisar pauta activa del día", "Coordinar activación BTL programada", "Entrega de material POP en punto", "Reporte de alcance de campañas pagadas", "Coordinación con proveedores de publicidad", "Actualizar cronograma de pauta"],
+  "🌎 Relaciones Públicas Nacionales": ["Contacto con medios nacionales", "Seguimiento a menciones en medios nacionales", "Coordinación de entrevistas nacionales", "Envío de boletín a medios nacionales", "Seguimiento a agenda de prensa nacional", "Reporte de cobertura nacional del día"],
+  "📦 Distribución de Contenido": ["Distribuir contenido del día a todos los canales", "Verificar que cada red tenga su publicación", "Coordinar reenvío a medios aliados", "Revisar horarios óptimos de publicación", "Confirmar entrega a community managers de cada unidad", "Reporte de distribución del día"],
+  "💬 Community Management": ["Publicaciones del día en redes", "Responder comentarios y mensajes directos", "Moderar comentarios negativos", "Programar publicaciones de mañana", "Revisar métricas del día anterior", "Historias / estados del día"],
+  "☎️ Call Center y Atención Ciudadana": ["Atender llamadas ciudadanas del turno", "Registrar novedades e inquietudes recibidas", "Escalar casos urgentes al área correspondiente", "Reporte de llamadas atendidas", "Seguimiento a casos pendientes", "Actualizar base de datos de atención"],
+  "🛡️ Refuerzo de Defensas": ["Revisar cuentas hostiles del día", "Registrar calificación en monitoreo de redes", "Preparar respuesta ante ataques activos", "Coordinar con Dircom mensajes de defensa", "Verificar si hay narrativas negativas nuevas", "Reporte de nivel de riesgo reputacional del día"],
 };
 function generarTareasFrecuentesPorDefecto(rol) {
   const categoria = categoriaDeRol(rol);
@@ -133,7 +146,7 @@ function CirculoProgreso({ pct, size = 58, color = "var(--rojo)" }) {
   );
 }
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
-const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "Patronato", "Comunicación Externa"];
+const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Aguas de Manta", "Patronato", "107 Mejor Ciudad", "Cuerpo de Bomberos", "Comunicación Externa"];
 const CANALES_CONTENIDO_SEED = ["Alcaldía", "Autoridad", "Patronato", "Bomberos", "Comunicación Externa"];
 const REDES_CONTENIDO = ["Facebook", "Instagram", "X", "TikTok", "YouTube", "Otro"];
 const ESTADOS_CONTENIDO = ["Por hacer", "Programado", "Publicado"];
@@ -149,9 +162,9 @@ function inicioDeSemana(fecha) {
 }
 
 function accesoPorRol(rol, forzarAdmin) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
-  if (rol === "Encargado") return ["resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
-  return ["contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
+  if (rol === "Encargado") return ["mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
+  return ["mando", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
 }
 
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
@@ -397,10 +410,10 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
 
 /* ---------- modo TV (pantalla tipo aeropuerto) ---------- */
 
-function ModoTV({ personas, tareas, metas, onSalir }) {
+function ModoTV({ personas, tareas, metas, unidades, onSalir }) {
   const [slide, setSlide] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setSlide(s => (s + 1) % 3), 30000);
+    const t = setInterval(() => setSlide(s => (s + 1) % 4), 30000);
     return () => clearInterval(t);
   }, []);
   const ranking = [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a));
@@ -410,12 +423,28 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
       <div className="tv-topbar">
         <div className="tv-marca"><span className="tv-punto" />ECO RADAR · Comunicación GAD Manta</div>
         <div className="tv-slides-dots">
-          {[0, 1, 2].map(i => <span key={i} className={"tv-dot" + (slide === i ? " activo" : "")} />)}
+          {[0, 1, 2, 3].map(i => <span key={i} className={"tv-dot" + (slide === i ? " activo" : "")} />)}
         </div>
         <div className="tv-salir" onClick={onSalir}>Salir</div>
       </div>
 
       {slide === 0 && (
+        <div className="tv-contenido">
+          <div className="tv-titulo-slide">Centro de mando · cumplimiento por equipo hoy</div>
+          <div className="tv-grid-personas">
+            {(unidades || []).map(u => (
+              <div className="tv-tarjeta" key={u.unidad}>
+                <div className="tv-tarjeta-nombre">{u.unidad}</div>
+                <div className="tv-meta-barra-fondo" style={{ marginTop: 10 }}><div className="tv-meta-barra-relleno" style={{ width: u.pct + "%", background: u.pct >= 80 ? "#4CAF6D" : u.pct >= 40 ? "#E0A93C" : "#E2544A" }} /></div>
+                <div className="tv-tarea-estado" style={{ marginTop: 6, fontSize: 16, color: "#fff" }}>{u.pct}% cumplido</div>
+              </div>
+            ))}
+            {(!unidades || unidades.length === 0) && <div className="tv-sin-datos">Sin equipos configurados aún</div>}
+          </div>
+        </div>
+      )}
+
+      {slide === 1 && (
         <div className="tv-contenido">
           <div className="tv-titulo-slide">Tareas de hoy por persona</div>
           <div className="tv-grid-personas">
@@ -439,7 +468,7 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
         </div>
       )}
 
-      {slide === 1 && (
+      {slide === 2 && (
         <div className="tv-contenido">
           <div className="tv-titulo-slide">Metas semanales del equipo</div>
           <div className="tv-grid-metas">
@@ -455,7 +484,7 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
         </div>
       )}
 
-      {slide === 2 && (
+      {slide === 3 && (
         <div className="tv-contenido">
           <div className="tv-titulo-slide">Ranking de cumplimiento</div>
           <div className="tv-ranking">
@@ -927,6 +956,14 @@ function EstilosGlobales() {
         .contenido-hook { font-weight: 400; color: var(--muted); font-style: italic; }
         .contenido-detalle-texto { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
         .link-volver-semana { font-size: 11.5px; color: var(--rojo); cursor: pointer; margin-top: 6px; text-align: center; }
+
+        .mando-unidades-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+        .mando-unidad-card { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; text-align: center; cursor: pointer; }
+        .mando-unidad-card:hover { border-color: var(--border-strong); }
+        .mando-unidad-card.sin-clic { cursor: default; }
+        .mando-unidad-card.sin-clic:hover { border-color: var(--border); }
+        .mando-unidad-nombre { font-size: 12.5px; font-weight: 700; }
+        .mando-unidad-detalle { font-size: 10.5px; color: var(--dim); }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
@@ -1595,7 +1632,18 @@ export default function EcoRadar() {
   const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
 
   if (vistaTV && enWorkspace) {
-    return <><EstilosGlobales /><ModoTV personas={personas} tareas={tareas} metas={metas} onSalir={() => setVistaTV(false)} /></>;
+    const hoyNombreTV = diaDeHoyNombre(reloj);
+    const unidadesParaTV = unidadesDisponibles.map(u => {
+      const gente = personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === u && p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
+      let metaTotal = 0, avanceTotal = 0;
+      gente.forEach(p => {
+        const tareasHoy = (p.tareasFrecuentes || []).filter(t => t.dia === hoyNombreTV);
+        metaTotal += tareasHoy.reduce((a, t) => a + t.cantidad, 0);
+        avanceTotal += tareasHoy.reduce((a, t) => a + t.avance, 0);
+      });
+      return { unidad: u, pct: metaTotal > 0 ? Math.round((avanceTotal / metaTotal) * 100) : 0 };
+    });
+    return <><EstilosGlobales /><ModoTV personas={personas} tareas={tareas} metas={metas} unidades={unidadesParaTV} onSalir={() => setVistaTV(false)} /></>;
   }
 
   return (
@@ -1729,6 +1777,80 @@ export default function EcoRadar() {
               </div>
               <div className="reloj"><Clock />{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })} · {reloj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
             </div>
+
+            {modulo === "mando" && (() => {
+              const hoyNombre = diaDeHoyNombre(reloj);
+              const unidadesConGente = unidadesDisponibles.map(u => {
+                const gente = personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === u && p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
+                let metaTotal = 0, avanceTotal = 0, personasConTareas = 0, personasCumplidas = 0;
+                gente.forEach(p => {
+                  const tareasHoy = (p.tareasFrecuentes || []).filter(t => t.dia === hoyNombre);
+                  const meta = tareasHoy.reduce((a, t) => a + t.cantidad, 0);
+                  const avance = tareasHoy.reduce((a, t) => a + t.avance, 0);
+                  if (meta > 0) { personasConTareas++; metaTotal += meta; avanceTotal += avance; if (avance >= meta) personasCumplidas++; }
+                });
+                const pct = metaTotal > 0 ? Math.round((avanceTotal / metaTotal) * 100) : 0;
+                return { unidad: u, gente: gente.length, personasConTareas, personasCumplidas, pct };
+              });
+              const pctGeneral = unidadesConGente.length ? Math.round(unidadesConGente.reduce((a, u) => a + u.pct, 0) / unidadesConGente.length) : 0;
+              const alertasRedesHoy = cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo) && (c.registros || []).some(r => r.fechaISO && r.fechaISO.slice(0, 10) === hoyISO && colorCalificacion(r.calificacion) === "rojo")).length;
+              const proyectosRojos = proyectos.filter(p => semaforoProyecto({ ...p, avance: avanceProyecto(p) }) === "rojo").length;
+              const contenidoHoy = contenidoPlan.filter(c => c.fecha === hoyISO);
+              const contenidoHoyPublicado = contenidoHoy.filter(c => c.estado === "Publicado").length;
+              return (
+                <>
+                  <div className="centro-mando">
+                    <div className="centro-mando-cab">
+                      <div><div className="centro-mando-titulo">Centro de Mando · Comunicación GAD Manta</div><div className="centro-mando-fecha">{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div></div>
+                      <div className="centro-mando-avance">{pctGeneral}% cumplido hoy</div>
+                    </div>
+                    <div className="barra-fondo" style={{ height: 8, marginBottom: 18 }}><div className="barra-relleno" style={{ width: pctGeneral + "%", background: pctGeneral >= 80 ? "var(--success)" : pctGeneral >= 50 ? "var(--warning)" : "var(--rojo)" }} /></div>
+                    <div className="kpis" style={{ marginBottom: 0 }}>
+                      <div className="kpi acento-rojo"><div className="kpi-valor">{alertasRedesHoy}</div><div className="kpi-label">Alertas de redes hoy</div></div>
+                      <div className="kpi acento-plomo"><div className="kpi-valor">{proyectosRojos}</div><div className="kpi-label">Proyectos en riesgo</div></div>
+                      <div className="kpi acento-acero"><div className="kpi-valor">{contenidoHoyPublicado}/{contenidoHoy.length}</div><div className="kpi-label">Contenido publicado hoy</div></div>
+                      <div className="kpi acento-exito"><div className="kpi-valor">{unidadesConGente.reduce((a, u) => a + u.personasCumplidas, 0)}/{unidadesConGente.reduce((a, u) => a + u.personasConTareas, 0)}</div><div className="kpi-label">Personas al 100% hoy</div></div>
+                    </div>
+                  </div>
+
+                  <div className="panel">
+                    <div className="panel-titulo">Cómo va cada dirección/equipo hoy</div>
+                    <div className="mando-unidades-grid">
+                      {unidadesConGente.map(u => (
+                        <div key={u.unidad} className={"mando-unidad-card" + (esAdmin ? "" : " sin-clic")} onClick={() => { if (esAdmin) { setUnidadActual(u.unidad); setModulo("roles"); } }}>
+                          <CirculoProgreso pct={u.pct} size={56} color={u.pct >= 80 ? "var(--success)" : u.pct >= 40 ? "var(--warning)" : "var(--rojo)"} />
+                          <div className="mando-unidad-nombre">{u.unidad}</div>
+                          <div className="mando-unidad-detalle">{u.personasCumplidas}/{u.personasConTareas} al día · {u.gente} personas</div>
+                        </div>
+                      ))}
+                      {unidadesConGente.length === 0 && <div className="campo-vacio">Agrega equipos en RRHH para verlos aquí.</div>}
+                    </div>
+                  </div>
+
+                  <div className="grid-dos">
+                    <div>
+                      <div className="panel">
+                        <div className="panel-titulo">Top del ranking general <span className="ver-mas" onClick={() => setModulo("ranking")} style={{ cursor: "pointer" }}>ver todo →</span></div>
+                        {rankingOrdenado.slice(0, 5).map((m, i) => (
+                          <div className="ranking-fila" key={m.id}><div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div><div className="ranking-fila-info"><div className="ranking-nombre">{m.persona}</div></div><div className="ranking-cumplimiento">{cumplimiento(m)}%</div></div>
+                        ))}
+                        {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas registradas.</div>}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="panel">
+                        <div className="panel-titulo">Proyectos en semáforo rojo <span className="ver-mas" onClick={() => setModulo("proyectos")} style={{ cursor: "pointer" }}>ver proyectos →</span></div>
+                        {proyectos.filter(p => semaforoProyecto({ ...p, avance: avanceProyecto(p) }) === "rojo").slice(0, 5).map(p => (
+                          <div className="alerta" key={p.id}><AlertTriangle /><div><div className="alerta-texto">{p.nombre}</div><div className="alerta-hora">{avanceProyecto(p)}% de avance</div></div></div>
+                        ))}
+                        {proyectosRojos === 0 && <div className="campo-vacio">Ningún proyecto en rojo por ahora.</div>}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="aviso-simulado" style={{ marginBottom: 18 }}>Este centro de mando reúne en un solo lugar lo que cada persona va llenando en Equipo/RRHH, Contenido, Proyectos, Redes y Ranking — se actualiza solo, sin que nadie tenga que avisar por aparte.</div>
+                </>
+              );
+            })()}
 
             {modulo === "resumen" && (
               <>
