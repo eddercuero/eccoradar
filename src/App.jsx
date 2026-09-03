@@ -1213,6 +1213,14 @@ export default function EcoRadar() {
 
   const [mostrarFormPersona, setMostrarFormPersona] = useState(false);
   const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
+  function generarCodigoAuto() {
+    const numericos = personas.map(p => parseInt(p.codigo, 10)).filter(n => !isNaN(n));
+    const max = numericos.length ? Math.max(...numericos) : 0;
+    return String(max + 1).padStart(3, "0");
+  }
+  function generarClaveAuto() {
+    return Math.random().toString(36).slice(2, 8);
+  }
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
     setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol), ausencias: [] }]);
@@ -2216,33 +2224,6 @@ export default function EcoRadar() {
 
             {modulo === "roles" && esAdmin && (
               <>
-                <div className="kpis">
-                  <div className="kpi acento-acero"><div className="kpi-valor">{personasUnidad.length}</div><div className="kpi-label">Personas en {unidadActual}</div></div>
-                  <div className="kpi acento-exito"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Trabajando").length}</div><div className="kpi-label">Trabajando hoy</div></div>
-                  <div className="kpi acento-plomo"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Vacaciones").length}</div><div className="kpi-label">De vacaciones hoy</div></div>
-                  <div className="kpi acento-rojo"><div className="kpi-valor">{tareas.filter(t => personasUnidad.some(p => p.nombre === t.responsable) && t.estado !== "Completado" && t.prioridad === "Alta").length}</div><div className="kpi-label">Tareas urgentes pendientes</div></div>
-                </div>
-
-                <div className="panel">
-                  <div className="panel-titulo">¿Dónde está mi equipo hoy?</div>
-                  <div className="equipo-hoy-grid">
-                    {personasUnidad.map(p => {
-                      const est = estadoDeHoy(p, hoyISO);
-                      return (
-                        <div key={p.id} className="equipo-hoy-card">
-                          <div className="ficha-avatar" style={{ cursor: "default" }}>
-                            {p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}
-                          </div>
-                          <div className="equipo-hoy-nombre">{p.nombre}</div>
-                          <div className="equipo-hoy-rol">{p.rol}</div>
-                          <span className={"etiqueta estado-" + est.color}>{est.texto}</span>
-                        </div>
-                      );
-                    })}
-                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para verlas aquí.</div>}
-                  </div>
-                </div>
-
                 <div className="panel">
                   <div className="panel-titulo">¿Qué equipo quieres gestionar?</div>
                   <div className="chips">
@@ -2259,45 +2240,6 @@ export default function EcoRadar() {
                   </div>
                   <div className="aviso-simulado">Cada equipo (Dircom, Bomberos, Patronato, Comunicación Externa, u otro que agregues) tiene su propia gente y su propio organigrama — son autónomos entre sí.</div>
                 </div>
-
-                <div className="panel">
-                  <div className="panel-titulo">Listas personalizadas — borra lo que agregaste por error</div>
-                  {[
-                    { titulo: "Roles", lista: rolesDisponibles, seed: ROLES_SEED, eliminar: eliminarRol },
-                    { titulo: "Modalidades", lista: modalidadesDisponibles, seed: MODALIDADES_SEED, eliminar: eliminarModalidad },
-                    { titulo: "Direcciones", lista: direccionesDisponibles, seed: DIRECCIONES_SEED, eliminar: eliminarDireccionCatalogo },
-                    { titulo: "Tipos de proyecto", lista: tiposProyectoDisponibles, seed: TIPOS_PROYECTO_SEED, eliminar: eliminarTipoProyectoCatalogo },
-                    { titulo: "Tipos de entregable", lista: tiposEntregableDisponibles, seed: TIPOS_ENTREGABLE, eliminar: eliminarTipoEntregableCatalogo },
-                  ].map(grupo => {
-                    const personalizados = grupo.lista.filter(x => !grupo.seed.includes(x));
-                    if (personalizados.length === 0) return null;
-                    return (
-                      <div key={grupo.titulo} className="selector-entregables-grupo">
-                        <div className="selector-entregables-cat" style={{ fontSize: 12, color: "var(--muted)", borderBottom: "none" }}>{grupo.titulo}</div>
-                        <div className="chips">
-                          {personalizados.map(x => (
-                            <div key={x} className="chip">
-                              {x}
-                              <IconCerrar style={{ width: 10, height: 10, marginLeft: 5, cursor: "pointer" }} onClick={() => grupo.eliminar(x)} />
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {[rolesDisponibles.filter(x => !ROLES_SEED.includes(x)), modalidadesDisponibles.filter(x => !MODALIDADES_SEED.includes(x)), direccionesDisponibles.filter(x => !DIRECCIONES_SEED.includes(x)), tiposProyectoDisponibles.filter(x => !TIPOS_PROYECTO_SEED.includes(x)), tiposEntregableDisponibles.filter(x => !TIPOS_ENTREGABLE.includes(x))].every(l => l.length === 0) && (
-                    <div className="campo-vacio">No has agregado nada personalizado todavía — aquí aparecerá para que lo puedas borrar si te equivocas.</div>
-                  )}
-                </div>
-
-                <div className="panel">
-                  <div className="panel-titulo">Organigrama · {unidadActual}</div>
-                  <div className="organigrama">
-                    {arbolOrganigrama.raices.map(p => <NodoOrganigrama key={p.id} persona={p} hijosDe={arbolOrganigrama.hijosDe} />)}
-                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para ver su organigrama.</div>}
-                  </div>
-                </div>
-
                 <div className="panel">
                   <div className="panel-titulo">
                     Fichas de {unidadActual}
@@ -2307,7 +2249,12 @@ export default function EcoRadar() {
                         <Upload /> Subir Excel
                         <input type="file" accept=".xlsx,.xls" onChange={manejarSubidaExcel} style={{ display: "none" }} />
                       </label>
-                      <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormPersona(!mostrarFormPersona)}><Plus /> Agregar persona</button>
+                      <button className="btn btn-primario btn-sm" onClick={() => {
+                        if (!mostrarFormPersona) {
+                          setNuevaPersona({ ...nuevaPersona, codigo: generarCodigoAuto(), clave: generarClaveAuto() });
+                        }
+                        setMostrarFormPersona(!mostrarFormPersona);
+                      }}><Plus /> Agregar persona</button>
                     </div>
                   </div>
                   {mostrarFormPersona && (
@@ -2413,6 +2360,68 @@ export default function EcoRadar() {
                   ))}
                   {personasUnidad.length === 0 && <div className="campo-vacio">Aún no hay nadie en {unidadActual}.</div>}
                   <div className="aviso-simulado">Estos códigos y claves son de nivel prototipo (viven en el navegador) — funcionan para controlar el acceso del día a día, pero no son un sistema de autenticación seguro para datos sensibles.</div>
+                </div>
+                <div className="panel">
+                  <div className="panel-titulo">Organigrama · {unidadActual}</div>
+                  <div className="organigrama">
+                    {arbolOrganigrama.raices.map(p => <NodoOrganigrama key={p.id} persona={p} hijosDe={arbolOrganigrama.hijosDe} />)}
+                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para ver su organigrama.</div>}
+                  </div>
+                </div>
+                <div className="kpis">
+                  <div className="kpi acento-acero"><div className="kpi-valor">{personasUnidad.length}</div><div className="kpi-label">Personas en {unidadActual}</div></div>
+                  <div className="kpi acento-exito"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Trabajando").length}</div><div className="kpi-label">Trabajando hoy</div></div>
+                  <div className="kpi acento-plomo"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Vacaciones").length}</div><div className="kpi-label">De vacaciones hoy</div></div>
+                  <div className="kpi acento-rojo"><div className="kpi-valor">{tareas.filter(t => personasUnidad.some(p => p.nombre === t.responsable) && t.estado !== "Completado" && t.prioridad === "Alta").length}</div><div className="kpi-label">Tareas urgentes pendientes</div></div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-titulo">¿Dónde está mi equipo hoy?</div>
+                  <div className="equipo-hoy-grid">
+                    {personasUnidad.map(p => {
+                      const est = estadoDeHoy(p, hoyISO);
+                      return (
+                        <div key={p.id} className="equipo-hoy-card">
+                          <div className="ficha-avatar" style={{ cursor: "default" }}>
+                            {p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}
+                          </div>
+                          <div className="equipo-hoy-nombre">{p.nombre}</div>
+                          <div className="equipo-hoy-rol">{p.rol}</div>
+                          <span className={"etiqueta estado-" + est.color}>{est.texto}</span>
+                        </div>
+                      );
+                    })}
+                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para verlas aquí.</div>}
+                  </div>
+                </div>
+                <div className="panel">
+                  <div className="panel-titulo">Listas personalizadas — borra lo que agregaste por error</div>
+                  {[
+                    { titulo: "Roles", lista: rolesDisponibles, seed: ROLES_SEED, eliminar: eliminarRol },
+                    { titulo: "Modalidades", lista: modalidadesDisponibles, seed: MODALIDADES_SEED, eliminar: eliminarModalidad },
+                    { titulo: "Direcciones", lista: direccionesDisponibles, seed: DIRECCIONES_SEED, eliminar: eliminarDireccionCatalogo },
+                    { titulo: "Tipos de proyecto", lista: tiposProyectoDisponibles, seed: TIPOS_PROYECTO_SEED, eliminar: eliminarTipoProyectoCatalogo },
+                    { titulo: "Tipos de entregable", lista: tiposEntregableDisponibles, seed: TIPOS_ENTREGABLE, eliminar: eliminarTipoEntregableCatalogo },
+                  ].map(grupo => {
+                    const personalizados = grupo.lista.filter(x => !grupo.seed.includes(x));
+                    if (personalizados.length === 0) return null;
+                    return (
+                      <div key={grupo.titulo} className="selector-entregables-grupo">
+                        <div className="selector-entregables-cat" style={{ fontSize: 12, color: "var(--muted)", borderBottom: "none" }}>{grupo.titulo}</div>
+                        <div className="chips">
+                          {personalizados.map(x => (
+                            <div key={x} className="chip">
+                              {x}
+                              <IconCerrar style={{ width: 10, height: 10, marginLeft: 5, cursor: "pointer" }} onClick={() => grupo.eliminar(x)} />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {[rolesDisponibles.filter(x => !ROLES_SEED.includes(x)), modalidadesDisponibles.filter(x => !MODALIDADES_SEED.includes(x)), direccionesDisponibles.filter(x => !DIRECCIONES_SEED.includes(x)), tiposProyectoDisponibles.filter(x => !TIPOS_PROYECTO_SEED.includes(x)), tiposEntregableDisponibles.filter(x => !TIPOS_ENTREGABLE.includes(x))].every(l => l.length === 0) && (
+                    <div className="campo-vacio">No has agregado nada personalizado todavía — aquí aparecerá para que lo puedas borrar si te equivocas.</div>
+                  )}
                 </div>
               </>
             )}
