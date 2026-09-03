@@ -149,9 +149,9 @@ function calcularScore100(persona, hoyNombre, mananaNombre, metas, proyectos) {
   const pctImpacto = metasPersona.length ? metasPersona.reduce((a, m) => a + pct(m.avanceSemana, m.metaSemana), 0) / metasPersona.length / 100 : 0;
   const impacto = Math.round(pctImpacto * 20);
 
-  const proyectosPersona = proyectos.filter(p => p.entregables.some(e => e.responsable === persona.nombre));
+  const proyectosPersona = proyectos.filter(p => (p.entregables || []).some(e => e.responsable === persona.nombre));
   let entregablesTotal = 0, entregablesHechos = 0;
-  proyectosPersona.forEach(p => p.entregables.filter(e => e.responsable === persona.nombre).forEach(e => { entregablesTotal++; if (e.completado) entregablesHechos++; }));
+  proyectosPersona.forEach(p => (p.entregables || []).filter(e => e.responsable === persona.nombre).forEach(e => { entregablesTotal++; if (e.completado) entregablesHechos++; }));
   const pctEvidencias = entregablesTotal > 0 ? entregablesHechos / entregablesTotal : pctCumplimiento;
   const evidencias = Math.round(pctEvidencias * 15);
 
@@ -1348,7 +1348,7 @@ export default function EcoRadar() {
   const tareasVisibles = esAdmin ? tareas : tareas.filter(t => t.responsable === nombreVisible);
   const metasPropias = esAdmin ? metas : metas.filter(m => m.persona === nombreVisible);
   const turnosVisibles = esAdmin ? turnos : turnos.filter(t => t.persona === nombreVisible);
-  const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
+  const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || (p.entregables || []).some(e => e.responsable === nombreVisible));
   const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
   const hoyISO = reloj.toISOString().slice(0, 10);
   const resumenRedesHoy = useMemo(() => {
@@ -1377,7 +1377,7 @@ export default function EcoRadar() {
   const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
   const personasEquipo = personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
   function proyectosDe(persona) {
-    return proyectos.filter(pr => pr.encargado === persona.nombre || pr.entregables.some(e => e.responsable === persona.nombre));
+    return proyectos.filter(pr => pr.encargado === persona.nombre || (pr.entregables || []).some(e => e.responsable === persona.nombre));
   }
   const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
   function agregarTarea() {
@@ -1445,7 +1445,7 @@ export default function EcoRadar() {
     setTiposNuevoProyecto([]);
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
-  function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
+  function avanceProyecto(p) { const ents = p.entregables || []; return ents.length ? Math.round((ents.filter(e => e.completado).length / ents.length) * 100) : (p.avanceManual || 0); }
   const [entregableForm, setEntregableForm] = useState({});
   function agregarEntregable(proyectoId) {
     const f = entregableForm[proyectoId];
@@ -1462,13 +1462,13 @@ export default function EcoRadar() {
     });
   }
   function alternarEntregable(proyectoId, entregableId) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: (p.entregables || []).map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
   }
   function cambiarResponsableEntregable(proyectoId, entregableId, nuevoResponsable) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, responsable: nuevoResponsable } : e) }));
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: (p.entregables || []).map(e => e.id === entregableId ? { ...e, responsable: nuevoResponsable } : e) }));
   }
   function eliminarEntregable(proyectoId, entregableId) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.filter(e => e.id !== entregableId) }));
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: (p.entregables || []).filter(e => e.id !== entregableId) }));
   }
 
   const [linkNuevo, setLinkNuevo] = useState("");
@@ -2606,7 +2606,7 @@ export default function EcoRadar() {
                           {esAdmin && <button className="btn btn-sm" onClick={() => setMostrarSelectorEntregables(!mostrarSelectorEntregables)}><Plus /> {mostrarSelectorEntregables ? "Cerrar" : "Agregar entregables"}</button>}
                         </div>
                         <div className="proyecto-entregables" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
-                          {seleccionado.entregables.filter(e => !e.completado).map(e => {
+                          {(seleccionado.entregables || []).filter(e => !e.completado).map(e => {
                             const puedeMarcar = esAdmin || e.responsable === nombreVisible || seleccionado.encargado === nombreVisible;
                             const puedeReasignar = esAdmin || seleccionado.encargado === nombreVisible;
                             return (
@@ -2626,12 +2626,12 @@ export default function EcoRadar() {
                               </div>
                             );
                           })}
-                          {seleccionado.entregables.length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
-                          {seleccionado.entregables.some(e => e.completado) && (
+                          {(seleccionado.entregables || []).length === 0 && <div className="campo-vacio">Sin entregables agregados.</div>}
+                          {(seleccionado.entregables || []).some(e => e.completado) && (
                             <div className="entregables-completados">
-                              <div className="entregables-completados-titulo">Ya terminados ({seleccionado.entregables.filter(e => e.completado).length})</div>
+                              <div className="entregables-completados-titulo">Ya terminados ({(seleccionado.entregables || []).filter(e => e.completado).length})</div>
                               <div className="entregables-completados-chips">
-                                {seleccionado.entregables.filter(e => e.completado).map(e => {
+                                {(seleccionado.entregables || []).filter(e => e.completado).map(e => {
                                   const puedeMarcar = esAdmin || e.responsable === nombreVisible || seleccionado.encargado === nombreVisible;
                                   return (
                                     <div key={e.id} className="entregable-chip-hecho" onClick={() => puedeMarcar && alternarEntregable(seleccionado.id, e.id)} title="Clic para reabrir">
