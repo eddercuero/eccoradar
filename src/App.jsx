@@ -1126,8 +1126,11 @@ export default function EcoRadar() {
 
         .ranking-fila { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .ranking-fila:last-child { border-bottom: none; }
-        .ranking-pos { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--muted); flex-shrink: 0; border: 1px solid var(--border); }
-        .ranking-pos.top1 { background: var(--rojo-soft); color: var(--rojo); border-color: var(--border-strong); }
+        .ranking-pos { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; font-family: 'IBM Plex Sans', sans-serif; background: var(--surface-2); color: var(--muted); flex-shrink: 0; border: 1.5px solid var(--border); }
+        .ranking-pos.oro { background: #FBE9B0; color: #8A6D00; border-color: #D4AF37; }
+        .ranking-pos.plata { background: #E4E6E9; color: #5A5F66; border-color: #B8BCC2; }
+        .ranking-pos.bronce { background: #EFD2B8; color: #8A4E1E; border-color: #C98A4B; }
+        .panel-titulo-app { text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; font-size: 13px; }
         .ranking-fila-info { flex: 1; }
         .ranking-nombre { font-size: 13.5px; font-weight: 500; }
         .ranking-detalle { font-size: 11.5px; color: var(--dim); }
@@ -1153,7 +1156,7 @@ export default function EcoRadar() {
         .proyecto-cab { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
         .proyecto-nombre { font-size: 15px; font-weight: 600; }
         .proyecto-meta { font-size: 11.5px; color: var(--dim); margin-top: 3px; }
-        .proyecto-avance-num { font-family: 'Newsreader', serif; font-size: 24px; }
+        .proyecto-avance-num { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 26px; }
         .proyecto-entregables { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 10px; }
         .entregable-fila { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; }
         .entregable-responsable-select { font-size: 12px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); font-family: inherit; color: var(--rojo); font-weight: 500; }
@@ -1343,7 +1346,7 @@ export default function EcoRadar() {
         .proyecto-mini:hover { border-color: var(--border-strong); }
         .proyecto-mini.activo { border-color: var(--rojo); background: var(--rojo-soft); }
         .proyecto-mini-info { flex: 1; min-width: 0; }
-        .proyecto-mini-nombre { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .proyecto-mini-nombre { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .proyecto-mini-tipo { font-size: 11px; color: var(--dim); }
         .proyecto-mini-avance { font-family: 'Newsreader', serif; font-size: 16px; flex-shrink: 0; }
         .proyecto-mini.terminado { padding: 8px 14px; opacity: 0.6; }
@@ -1355,11 +1358,11 @@ export default function EcoRadar() {
         .proyecto-detalle-cab.rojo { border-left-color: var(--rojo); }
         .proyecto-detalle-cab.amarillo { border-left-color: var(--warning); }
         .proyecto-detalle-cab.verde { border-left-color: var(--success); }
-        .proyecto-detalle-tipo { font-size: 11.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 3px; }
-        .proyecto-detalle-nombre { font-family: 'Newsreader', serif; font-size: 24px; }
+        .proyecto-detalle-tipo { font-size: 11px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; font-weight: 700; margin-bottom: 3px; }
+        .proyecto-detalle-nombre { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 22px; letter-spacing: -0.2px; }
         .proyecto-detalle-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 18px 0 8px; }
-        .proyecto-detalle-etiqueta { font-size: 10.5px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 3px; }
-        .proyecto-detalle-valor { font-size: 13.5px; font-weight: 600; }
+        .proyecto-detalle-etiqueta { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 4px; }
+        .proyecto-detalle-valor { font-size: 15px; font-weight: 800; font-family: 'IBM Plex Sans', sans-serif; }
 
         .reloj-cuenta { background: var(--plomo-oscuro); border-radius: 10px; padding: 18px 22px; color: #fff; margin-bottom: 18px; }
         .reloj-cuenta.rojo, .reloj-cuenta.vencido { background: #4A1218; }
@@ -1368,7 +1371,7 @@ export default function EcoRadar() {
         .reloj-cuenta-label { font-size: 11.5px; color: rgba(255,255,255,0.65); margin-bottom: 10px; }
         .reloj-cuenta-numeros { display: flex; gap: 26px; }
         .reloj-cuenta-bloque { text-align: center; }
-        .reloj-cuenta-num { font-family: 'Newsreader', serif; font-size: 40px; line-height: 1; }
+        .reloj-cuenta-num { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 38px; line-height: 1; }
         .reloj-cuenta-unidad { font-size: 10.5px; color: rgba(255,255,255,0.6); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.4px; }
         .reloj-cuenta-fecha { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 12px; }
 
@@ -1553,7 +1556,7 @@ export default function EcoRadar() {
                     <div className="panel">
                       <div className="panel-titulo">Top 3 del ranking <span className="ver-mas" onClick={() => setModulo("ranking")} style={{ cursor: "pointer" }}>ver todo →</span></div>
                       {rankingOrdenado.slice(0, 3).map((m, i) => (
-                        <div className="fila-persona" key={m.id}><div className={"ranking-pos" + (i === 0 ? " top1" : "")}>{i + 1}</div><div><div className="persona-nombre">{m.persona}</div><div className="persona-tarea">{m.entregable}</div></div><div className="estado-texto" style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{cumplimiento(m)}%</div></div>
+                        <div className="fila-persona" key={m.id}><div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div><div><div className="persona-nombre">{m.persona}</div><div className="persona-tarea">{m.entregable}</div></div><div className="estado-texto" style={{ fontSize: 15, fontWeight: 600, color: "var(--text)" }}>{cumplimiento(m)}%</div></div>
                       ))}
                       {rankingOrdenado.length === 0 && <div className="campo-vacio">Aún no hay metas para calcular el ranking.</div>}
                     </div>
@@ -1731,7 +1734,7 @@ export default function EcoRadar() {
               <>
                 {esAdmin && (
                   <div className="panel">
-                    <div className="panel-titulo">
+                    <div className="panel-titulo panel-titulo-app">
                       Proyectos y trabajos transversales
                       <button className="btn btn-primario btn-sm" onClick={() => {
                         if (!mostrarFormProyecto) {
@@ -1977,10 +1980,10 @@ export default function EcoRadar() {
             {modulo === "ranking" && (
               <>
                 <div className="panel">
-                  <div className="panel-titulo">Ranking del equipo · quién cumple primero y quién se atrasa</div>
+                  <div className="panel-titulo panel-titulo-app">Ranking del equipo · quién cumple primero y quién se atrasa</div>
                   {rankingOrdenado.map((m, i) => (
                     <div className="ranking-fila" key={m.id}>
-                      <div className={"ranking-pos" + (i === 0 ? " top1" : "")}>{i + 1}</div>
+                      <div className={"ranking-pos" + (i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
                       <div className="ranking-fila-info"><div className="ranking-nombre">{m.persona} <span className="meta-rol">· {m.rol}</span></div><div className="ranking-detalle">{m.entregable} — hoy {m.avanceHoy}/{m.metaHoy} · semana {m.avanceSemana}/{m.metaSemana}</div></div>
                       <span className={"etiqueta " + (cumplimiento(m) >= 90 ? "etq-completado" : cumplimiento(m) >= 60 ? "etq-media" : "etq-alta")}>{cumplimiento(m) >= 90 ? "Al día" : cumplimiento(m) >= 60 ? "En curso" : "Atrasado"}</span>
                       <div className="ranking-cumplimiento">{cumplimiento(m)}%</div>
@@ -1990,12 +1993,12 @@ export default function EcoRadar() {
                 </div>
 
                 <div className="panel">
-                  <div className="panel-titulo">Ranking de páginas monitoreadas · más revisadas primero</div>
+                  <div className="panel-titulo panel-titulo-app">Ranking de páginas monitoreadas · más revisadas primero</div>
                   {rankingPaginas.map((c, i) => {
                     const Icono = PLATAFORMA_ICONO[c.plataforma];
                     return (
                       <div className="ranking-fila" key={c.id}>
-                        <div className={"ranking-pos" + (i === 0 && c.totalRegistros > 0 ? " top1" : "")}>{i + 1}</div>
+                        <div className={"ranking-pos" + (c.totalRegistros === 0 ? "" : i === 0 ? " oro" : i === 1 ? " plata" : i === 2 ? " bronce" : "")}>{i + 1}</div>
                         <div className="ranking-fila-info">
                           <div className="ranking-nombre"><Icono style={{ width: 13, height: 13, marginRight: 5, verticalAlign: "-2px" }} />{c.handle} <span className="meta-rol">· {c.tipo}</span></div>
                           <div className="ranking-detalle">{c.totalRegistros} {c.totalRegistros === 1 ? "revisión registrada" : "revisiones registradas"}{c.ultimo ? " · última: " + c.ultimo.fecha : ""}</div>
