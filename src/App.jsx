@@ -137,6 +137,16 @@ const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Bomberos", "
 const CANALES_CONTENIDO_SEED = ["Alcaldía", "Autoridad", "Patronato", "Bomberos", "Comunicación Externa"];
 const REDES_CONTENIDO = ["Facebook", "Instagram", "X", "TikTok", "YouTube", "Otro"];
 const ESTADOS_CONTENIDO = ["Por hacer", "Programado", "Publicado"];
+const FORMATOS_CONTENIDO = ["Vertical", "Horizontal", "Cuadrado"];
+const TIPOS_PIEZA = ["Post", "Reel", "Historia / Estado", "Video corto", "Video largo", "Otro"];
+function inicioDeSemana(fecha) {
+  const d = new Date(fecha);
+  const dia = d.getDay();
+  const diff = dia === 0 ? -6 : 1 - dia;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
 
 function accesoPorRol(rol, forzarAdmin) {
   if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
@@ -465,6 +475,42 @@ function ModoTV({ personas, tareas, metas, onSalir }) {
 }
 
 /* ---------- nodo recursivo del organigrama ---------- */
+
+function ModalContenido({ item, onClose, onCambiarEstado, onEliminar, personasEquipo, onCambiarResponsable }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-feed" onClick={e => e.stopPropagation()} style={{ maxWidth: 460 }}>
+        <div className="modal-feed-header">
+          <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Megaphone /></div><div><div className="modal-feed-nombre">{item.campana}</div><div className="modal-feed-sub">{item.canal} · {item.fecha}</div></div></div>
+          <IconCerrar className="modal-feed-cerrar" onClick={onClose} />
+        </div>
+        <div className="modal-feed-body" style={{ padding: 18 }}>
+          <div className="chips" style={{ marginBottom: 14 }}>
+            {ESTADOS_CONTENIDO.map(e => <div key={e} className={"chip" + (item.estado === e ? " activo" : "")} onClick={() => onCambiarEstado(item.id, e)}>{e}</div>)}
+          </div>
+          <div className="proyecto-detalle-grid" style={{ gridTemplateColumns: "1fr 1fr", marginTop: 0 }}>
+            <div><div className="proyecto-detalle-etiqueta">Red social</div><div className="proyecto-detalle-valor">{item.redSocial}</div></div>
+            <div><div className="proyecto-detalle-etiqueta">Área</div><div className="proyecto-detalle-valor">{item.area}</div></div>
+            <div><div className="proyecto-detalle-etiqueta">Formato</div><div className="proyecto-detalle-valor">{item.formato}</div></div>
+            <div><div className="proyecto-detalle-etiqueta">Tipo de pieza</div><div className="proyecto-detalle-valor">{item.tipoPieza}</div></div>
+            {item.presupuesto && <div><div className="proyecto-detalle-etiqueta">Presupuesto</div><div className="proyecto-detalle-valor">${item.presupuesto}</div></div>}
+          </div>
+          {item.hook && <div style={{ marginTop: 14 }}><div className="proyecto-detalle-etiqueta">Hook / gancho</div><div style={{ fontSize: 13, fontStyle: "italic" }}>"{item.hook}"</div></div>}
+          {item.texto && <div style={{ marginTop: 10 }}><div className="proyecto-detalle-etiqueta">Texto / copy</div><div style={{ fontSize: 13 }}>{item.texto}</div></div>}
+          {item.ideaVideo && <div style={{ marginTop: 10 }}><div className="proyecto-detalle-etiqueta">Idea de video/pieza</div><div style={{ fontSize: 13 }}>{item.ideaVideo}</div></div>}
+          <div style={{ marginTop: 14 }}>
+            <div className="proyecto-detalle-etiqueta">Responsable</div>
+            <select value={item.responsable} onChange={e => onCambiarResponsable(item.id, e.target.value)} style={{ marginTop: 4, width: "100%", padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--surface-2)", fontFamily: "inherit", fontSize: 13 }}>
+              <option value="">Sin asignar</option>
+              {personasEquipo.map(pe => <option key={pe.id} value={pe.nombre}>{pe.nombre} — {pe.rol}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="modal-feed-footer-acciones" onClick={() => { onEliminar(item.id); onClose(); }}><Trash2 style={{ width: 13, height: 13 }} /> Eliminar del plan</div>
+      </div>
+    </div>
+  );
+}
 
 function NodoOrganigrama({ persona, hijosDe }) {
   const hijos = hijosDe(persona.nombre);
@@ -880,6 +926,7 @@ function EstilosGlobales() {
         .contenido-campana { font-size: 13px; font-weight: 700; }
         .contenido-hook { font-weight: 400; color: var(--muted); font-style: italic; }
         .contenido-detalle-texto { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+        .link-volver-semana { font-size: 11.5px; color: var(--rojo); cursor: pointer; margin-top: 6px; text-align: center; }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
@@ -1314,7 +1361,9 @@ export default function EcoRadar() {
   const [filtroCanalContenido, setFiltroCanalContenido] = useState("Todos");
   const [nuevoCanalTexto, setNuevoCanalTexto] = useState("");
   const [mostrarFormContenido, setMostrarFormContenido] = useState(false);
-  const [nuevoContenido, setNuevoContenido] = useState({ canal: CANALES_CONTENIDO_SEED[0], fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "" });
+  const [contenidoAbierto, setContenidoAbierto] = useState(null);
+  const [semanaOffsetContenido, setSemanaOffsetContenido] = useState(0);
+  const [nuevoContenido, setNuevoContenido] = useState({ canal: CANALES_CONTENIDO_SEED[0], fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "", area: AREAS[0], formato: FORMATOS_CONTENIDO[0], tipoPieza: TIPOS_PIEZA[0], presupuesto: "" });
   function agregarCanalContenidoNuevo() {
     const v = nuevoCanalTexto.trim();
     if (!v || canalesContenidoDisponibles.includes(v)) return;
@@ -1325,17 +1374,33 @@ export default function EcoRadar() {
   function agregarContenido() {
     if (!nuevoContenido.fecha || !nuevoContenido.campana.trim()) return;
     setContenidoPlan([{ id: Date.now(), ...nuevoContenido, estado: "Por hacer" }, ...contenidoPlan]);
-    setNuevoContenido({ canal: nuevoContenido.canal, fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", redSocial: REDES_CONTENIDO[0], responsable: "" });
+    setNuevoContenido({ ...nuevoContenido, fecha: "", campana: "", hook: "", texto: "", ideaVideo: "", responsable: "", presupuesto: "" });
     setMostrarFormContenido(false);
   }
   function eliminarContenido(id) { setContenidoPlan(contenidoPlan.filter(c => c.id !== id)); }
-  function cambiarEstadoContenido(id) {
+  function cambiarEstadoContenido(id, estadoNuevo) {
     setContenidoPlan(contenidoPlan.map(c => {
       if (c.id !== id) return c;
+      if (estadoNuevo) return { ...c, estado: estadoNuevo };
       const i = ESTADOS_CONTENIDO.indexOf(c.estado);
       return { ...c, estado: ESTADOS_CONTENIDO[(i + 1) % ESTADOS_CONTENIDO.length] };
     }));
   }
+  function cambiarResponsableContenido(id, responsable) {
+    setContenidoPlan(contenidoPlan.map(c => c.id === id ? { ...c, responsable } : c));
+  }
+  const inicioSemanaContenido = useMemo(() => {
+    const base = inicioDeSemana(reloj);
+    base.setDate(base.getDate() + semanaOffsetContenido * 7);
+    return base;
+  }, [reloj, semanaOffsetContenido]);
+  const diasSemanaContenido = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(inicioSemanaContenido);
+      d.setDate(d.getDate() + i);
+      return claveFecha(d);
+    });
+  }, [inicioSemanaContenido]);
   function eliminarUnidad(nombre) {
     if (UNIDADES_SEED.includes(nombre)) return;
     setUnidadesDisponibles(prev => prev.filter(u => u !== nombre));
@@ -1712,24 +1777,41 @@ export default function EcoRadar() {
 
             {modulo === "contenido" && (() => {
               const canalesConTodos = ["Todos", ...canalesContenidoDisponibles];
-              const visiblesContenido = filtroCanalContenido === "Todos" ? contenidoPlan : contenidoPlan.filter(c => c.canal === filtroCanalContenido);
+              const visiblesContenido = (filtroCanalContenido === "Todos" ? contenidoPlan : contenidoPlan.filter(c => c.canal === filtroCanalContenido))
+                .filter(c => diasSemanaContenido.includes(c.fecha));
               const totalContenido = visiblesContenido.length;
               const publicados = visiblesContenido.filter(c => c.estado === "Publicado").length;
               const programados = visiblesContenido.filter(c => c.estado === "Programado").length;
               const porHacer = visiblesContenido.filter(c => c.estado === "Por hacer").length;
               const pctAvanceContenido = totalContenido > 0 ? Math.round((publicados / totalContenido) * 100) : 0;
+              const presupuestoTotal = visiblesContenido.reduce((a, c) => a + (Number(c.presupuesto) || 0), 0);
+              const resumenPorTipo = {};
+              visiblesContenido.forEach(c => { resumenPorTipo[c.tipoPieza] = (resumenPorTipo[c.tipoPieza] || 0) + 1; });
               const agrupadoPorFecha = {};
-              [...visiblesContenido].sort((a, b) => a.fecha.localeCompare(b.fecha)).forEach(c => {
-                if (!agrupadoPorFecha[c.fecha]) agrupadoPorFecha[c.fecha] = [];
-                agrupadoPorFecha[c.fecha].push(c);
-              });
+              diasSemanaContenido.forEach(f => { agrupadoPorFecha[f] = visiblesContenido.filter(c => c.fecha === f); });
+              const finSemana = new Date(inicioSemanaContenido); finSemana.setDate(finSemana.getDate() + 6);
               return (
                 <>
                   <div className="kpis">
-                    <div className="kpi acento-acero"><div className="kpi-valor">{totalContenido}</div><div className="kpi-label">Piezas planificadas</div></div>
+                    <div className="kpi acento-acero"><div className="kpi-valor">{totalContenido}</div><div className="kpi-label">Piezas esta semana</div></div>
                     <div className="kpi acento-exito"><div className="kpi-valor">{publicados}</div><div className="kpi-label">Publicadas</div></div>
                     <div className="kpi acento-plomo"><div className="kpi-valor">{programados + porHacer}</div><div className="kpi-label">Pendientes</div></div>
-                    <div className="kpi acento-rojo"><div className="kpi-valor">{pctAvanceContenido}%</div><div className="kpi-label">Avance del plan</div></div>
+                    <div className="kpi acento-rojo"><div className="kpi-valor">{pctAvanceContenido}%</div><div className="kpi-label">Avance de la semana</div></div>
+                  </div>
+
+                  <div className="panel">
+                    <div className="cal-header">
+                      <ChevronLeft style={{ cursor: "pointer", color: "var(--muted)" }} onClick={() => setSemanaOffsetContenido(semanaOffsetContenido - 1)} />
+                      <div className="cal-mes">Semana del {inicioSemanaContenido.toLocaleDateString("es-ES", { day: "numeric", month: "short" })} al {finSemana.toLocaleDateString("es-ES", { day: "numeric", month: "short" })}{semanaOffsetContenido === 0 && <span className="etiqueta etq-completado" style={{ marginLeft: 10 }}>Esta semana</span>}</div>
+                      <ChevronRight style={{ cursor: "pointer", color: "var(--muted)" }} onClick={() => setSemanaOffsetContenido(semanaOffsetContenido + 1)} />
+                    </div>
+                    {semanaOffsetContenido !== 0 && <div className="link-volver-semana" onClick={() => setSemanaOffsetContenido(0)}>← Volver a esta semana</div>}
+                    {presupuestoTotal > 0 && <div className="aviso-simulado" style={{ marginTop: 8 }}>💰 Presupuesto planificado esta semana: <strong style={{ color: "var(--text)" }}>${presupuestoTotal}</strong></div>}
+                    {Object.keys(resumenPorTipo).length > 0 && (
+                      <div className="chips" style={{ marginTop: 10 }}>
+                        {Object.entries(resumenPorTipo).map(([tipo, n]) => <div key={tipo} className="chip">{n} {tipo}{n > 1 && !tipo.endsWith("s") ? "s" : ""}</div>)}
+                      </div>
+                    )}
                   </div>
 
                   <div className="panel">
@@ -1741,21 +1823,24 @@ export default function EcoRadar() {
                       <input type="text" placeholder="+ Agregar página/autoridad (ej. Turismo)" value={nuevoCanalTexto} onChange={e => setNuevoCanalTexto(e.target.value)} />
                       <button className="btn btn-sm" onClick={agregarCanalContenidoNuevo}><Plus /> Agregar</button>
                     </div>
-                    <div className="aviso-simulado">Alcaldía, Autoridad, Patronato, Bomberos y Comunicación Externa ya vienen listos — agrega los que falten (medios aliados, internos, externos, lo que necesites).</div>
                   </div>
 
                   <div className="panel">
                     <div className="panel-titulo">
                       Plan de contenido {filtroCanalContenido !== "Todos" ? "· " + filtroCanalContenido : "· todos los canales"}
-                      <button className="btn btn-primario btn-sm" onClick={() => { setMostrarFormContenido(!mostrarFormContenido); setNuevoContenido({ ...nuevoContenido, canal: filtroCanalContenido !== "Todos" ? filtroCanalContenido : canalesContenidoDisponibles[0] }); }}><Plus /> Agregar al plan</button>
+                      <button className="btn btn-primario btn-sm" onClick={() => { setMostrarFormContenido(!mostrarFormContenido); setNuevoContenido({ ...nuevoContenido, canal: filtroCanalContenido !== "Todos" ? filtroCanalContenido : canalesContenidoDisponibles[0], fecha: diasSemanaContenido[0] }); }}><Plus /> Agregar al plan</button>
                     </div>
                     {mostrarFormContenido && (
                       <div className="form-card">
                         <div className="form-grid">
                           <div className="campo-form"><label>¿Para quién es?</label><select value={nuevoContenido.canal} onChange={e => setNuevoContenido({ ...nuevoContenido, canal: e.target.value })}>{canalesContenidoDisponibles.map(c => <option key={c}>{c}</option>)}</select></div>
-                          <div className="campo-form"><label>Fecha de subida</label><input type="date" value={nuevoContenido.fecha} onChange={e => setNuevoContenido({ ...nuevoContenido, fecha: e.target.value })} /></div>
+                          <div className="campo-form"><label>Fecha de subida (esta semana)</label><select value={nuevoContenido.fecha} onChange={e => setNuevoContenido({ ...nuevoContenido, fecha: e.target.value })}>{diasSemanaContenido.map(f => <option key={f} value={f}>{new Date(f + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric" })}</option>)}</select></div>
+                          <div className="campo-form"><label>Área</label><select value={nuevoContenido.area} onChange={e => setNuevoContenido({ ...nuevoContenido, area: e.target.value })}>{AREAS.map(a => <option key={a}>{a}</option>)}</select></div>
                           <div className="campo-form"><label>Red social</label><select value={nuevoContenido.redSocial} onChange={e => setNuevoContenido({ ...nuevoContenido, redSocial: e.target.value })}>{REDES_CONTENIDO.map(r => <option key={r}>{r}</option>)}</select></div>
+                          <div className="campo-form"><label>Tipo de pieza</label><select value={nuevoContenido.tipoPieza} onChange={e => setNuevoContenido({ ...nuevoContenido, tipoPieza: e.target.value })}>{TIPOS_PIEZA.map(t => <option key={t}>{t}</option>)}</select></div>
+                          <div className="campo-form"><label>Formato</label><select value={nuevoContenido.formato} onChange={e => setNuevoContenido({ ...nuevoContenido, formato: e.target.value })}>{FORMATOS_CONTENIDO.map(f => <option key={f}>{f}</option>)}</select></div>
                           <div className="campo-form"><label>Nombre de la campaña</label><input type="text" placeholder="Ej. Manta Ciudad del Deporte" value={nuevoContenido.campana} onChange={e => setNuevoContenido({ ...nuevoContenido, campana: e.target.value })} /></div>
+                          <div className="campo-form"><label>Presupuesto (opcional)</label><input type="number" min="0" placeholder="$" value={nuevoContenido.presupuesto} onChange={e => setNuevoContenido({ ...nuevoContenido, presupuesto: e.target.value })} /></div>
                           <div className="campo-form"><label>Hook / gancho</label><input type="text" placeholder="Ej. ¿Sabías que...?" value={nuevoContenido.hook} onChange={e => setNuevoContenido({ ...nuevoContenido, hook: e.target.value })} /></div>
                           <div className="campo-form"><label>Idea de video/pieza</label><input type="text" placeholder="Ej. Timelapse de la obra" value={nuevoContenido.ideaVideo} onChange={e => setNuevoContenido({ ...nuevoContenido, ideaVideo: e.target.value })} /></div>
                           <div className="campo-form" style={{ gridColumn: "span 2" }}><label>Texto / copy</label><input type="text" placeholder="Texto que va a llevar la publicación" value={nuevoContenido.texto} onChange={e => setNuevoContenido({ ...nuevoContenido, texto: e.target.value })} /></div>
@@ -1765,20 +1850,20 @@ export default function EcoRadar() {
                       </div>
                     )}
 
-                    {Object.keys(agrupadoPorFecha).length === 0 && <div className="campo-vacio">Aún no hay contenido planificado{filtroCanalContenido !== "Todos" ? " para " + filtroCanalContenido : ""}.</div>}
-                    {Object.entries(agrupadoPorFecha).map(([fecha, items]) => (
+                    {diasSemanaContenido.map(fecha => (
                       <div key={fecha} className="contenido-fecha-grupo">
                         <div className="contenido-fecha-titulo">{new Date(fecha + "T12:00:00").toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div>
-                        {items.map(c => (
-                          <div key={c.id} className="contenido-fila">
+                        {agrupadoPorFecha[fecha].length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin contenido planificado este día.</div>}
+                        {agrupadoPorFecha[fecha].map(c => (
+                          <div key={c.id} className="contenido-fila fila-clic" onClick={() => setContenidoAbierto(c.id)}>
                             <span className="etiqueta etq-baja">{c.canal}</span>
                             <span className="etiqueta etq-baja">{c.redSocial}</span>
+                            <span className="etiqueta etq-baja">{c.tipoPieza}</span>
                             <div className="contenido-fila-info">
                               <div className="contenido-campana">{c.campana}{c.hook && <span className="contenido-hook"> — "{c.hook}"</span>}</div>
-                              <div className="contenido-detalle-texto">{c.texto}{c.ideaVideo ? (c.texto ? " · " : "") + "Video: " + c.ideaVideo : ""}{c.responsable ? " · Responsable: " + c.responsable : ""}</div>
+                              <div className="contenido-detalle-texto">{c.responsable ? "Responsable: " + c.responsable : "Sin asignar"}</div>
                             </div>
-                            <span className={"etiqueta fila-clic " + (c.estado === "Publicado" ? "etq-completado" : c.estado === "Programado" ? "etq-progreso" : "etq-pendiente")} onClick={() => cambiarEstadoContenido(c.id)}>{c.estado}</span>
-                            <Trash2 style={{ width: 13, height: 13, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarContenido(c.id)} />
+                            <span className={"etiqueta " + (c.estado === "Publicado" ? "etq-completado" : c.estado === "Programado" ? "etq-progreso" : "etq-pendiente")}>{c.estado}</span>
                           </div>
                         ))}
                       </div>
@@ -2653,6 +2738,12 @@ export default function EcoRadar() {
           </main>
         </>
       )}
+
+      {contenidoAbierto && (() => {
+        const item = contenidoPlan.find(c => c.id === contenidoAbierto);
+        if (!item) return null;
+        return <ModalContenido item={item} onClose={() => setContenidoAbierto(null)} onCambiarEstado={cambiarEstadoContenido} onEliminar={eliminarContenido} personasEquipo={personasEquipo} onCambiarResponsable={cambiarResponsableContenido} />;
+      })()}
 
       {cuentaAbierta && (() => {
         const c = cuentas.find(x => x.id === cuentaAbierta);
