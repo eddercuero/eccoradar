@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -1333,6 +1333,15 @@ export default function EcoRadar() {
       return { ...p, horarioSemana };
     }));
   }
+  function aplicarHorarioATodos(personaId, diaOrigen) {
+    setPersonas(prev => prev.map(p => {
+      if (p.id !== personaId) return p;
+      const base = (p.horarioSemana || horarioSemanaDefault())[diaOrigen];
+      const nuevo = {};
+      DIAS_SEMANA_H.forEach(d => { nuevo[d] = { trabaja: true, inicio: base.inicio, fin: base.fin }; });
+      return { ...p, horarioSemana: nuevo };
+    }));
+  }
   function cambiarModalidadTrabajo(personaId, valor) {
     setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, modalidadTrabajo: valor } : p));
   }
@@ -2348,12 +2357,14 @@ export default function EcoRadar() {
                                         <input type="time" value={info.inicio} onChange={e => actualizarHorarioDia(p.id, dia, "inicio", e.target.value)} />
                                         <span style={{ color: "var(--dim)", fontSize: 11 }}>a</span>
                                         <input type="time" value={info.fin} onChange={e => actualizarHorarioDia(p.id, dia, "fin", e.target.value)} />
+                                        <CopyCheck style={{ width: 14, height: 14, color: "var(--rojo)", cursor: "pointer", flexShrink: 0 }} title="Aplicar este horario a toda la semana" onClick={() => aplicarHorarioATodos(p.id, dia)} />
                                       </>
                                     ) : <span className="horario-dia-libre">Libre</span>}
                                   </div>
                                 );
                               })}
                             </div>
+                            <div className="aviso-simulado" style={{ marginTop: 8 }}>Clic en el ícono junto a un día para aplicar ese mismo horario a toda la semana — luego puedes cambiar cualquier día si es distinto.</div>
                           </div>
                           <div className="ficha-columna">
                             <div className="ficha-subtitulo"><Repeat style={{ width: 13, height: 13 }} /> Tareas frecuentes (rutina semanal)</div>
