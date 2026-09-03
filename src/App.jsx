@@ -967,8 +967,9 @@ export default function EcoRadar() {
         /* ---- sidebar ---- */
         .sidebar { width: 216px; flex-shrink: 0; background: var(--bg-alt); border-right: 1px solid var(--border); padding: 22px 14px; display: flex; flex-direction: column; gap: 18px; }
         .marca { display: flex; align-items: center; gap: 10px; padding: 0 8px; }
+        .marca-badge { width: 34px; height: 34px; border-radius: 9px; background: var(--rojo); color: #fff; font-weight: 800; font-size: 12px; display: flex; align-items: center; justify-content: center; letter-spacing: -0.3px; flex-shrink: 0; }
         .marca .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--rojo); }
-        .marca-texto { font-family: 'Newsreader', serif; font-size: 20px; color: var(--plomo-oscuro); }
+        .marca-texto { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 19px; color: var(--plomo-oscuro); letter-spacing: -0.2px; }
         .marca-sub { font-size: 10.5px; color: var(--dim); margin-top: -2px; }
         .empresa-actual { padding: 9px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; }
         .empresa-actual .nombre { font-size: 12.5px; font-weight: 600; }
@@ -976,9 +977,9 @@ export default function EcoRadar() {
         .empresa-actual .cerrar { font-size: 10.5px; color: var(--rojo); cursor: pointer; display: flex; align-items: center; gap: 4px; margin-top: 6px; }
         .empresa-actual .cerrar svg { width: 11px; height: 11px; }
         .navlist { display: flex; flex-direction: column; gap: 3px; }
-        .navitem { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 6px; color: var(--muted); font-size: 13.5px; cursor: pointer; border-left: 2px solid transparent; background: transparent; }
+        .navitem { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; color: var(--muted); font-size: 13.5px; font-weight: 600; cursor: pointer; border-left: none; background: transparent; }
         .navitem:hover { background: var(--surface-2); color: var(--text); }
-        .navitem.activo { background: var(--rojo-soft); color: var(--rojo); border-left: 2px solid var(--rojo); }
+        .navitem.activo { background: var(--rojo); color: #fff; border-left: none; box-shadow: 0 2px 8px rgba(198,29,45,0.28); }
         .navitem svg { width: 16px; height: 16px; flex-shrink: 0; }
         .sidebar-footer { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
         .btn-tv { width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px; padding: 9px; border-radius: 6px; background: var(--plomo-oscuro); color: #fff; font-size: 12.5px; cursor: pointer; border: none; font-family: inherit; }
@@ -987,15 +988,15 @@ export default function EcoRadar() {
         /* ---- main ---- */
         .main { flex: 1; overflow-y: auto; padding: 26px 32px 40px; }
         .topbar { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 18px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
-        .titulo-modulo { font-size: 26px; font-weight: 500; color: var(--plomo-oscuro); }
+        .titulo-modulo { font-family: 'IBM Plex Sans', sans-serif; font-size: 24px; font-weight: 800; color: var(--plomo-oscuro); letter-spacing: -0.3px; }
         .subtitulo-modulo { color: var(--muted); font-size: 13px; margin-top: 3px; }
         .reloj { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 13px; }
         .reloj svg { width: 14px; height: 14px; }
 
         .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 26px; }
-        .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 16px 18px; }
-        .kpi-valor { font-family: 'Newsreader', serif; font-size: 32px; line-height: 1; }
-        .kpi-label { color: var(--muted); font-size: 12px; margin-top: 8px; }
+        .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 20px; box-shadow: 0 1px 3px rgba(20,22,25,0.04); }
+        .kpi-valor { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 30px; line-height: 1; letter-spacing: -0.5px; }
+        .kpi-label { color: var(--muted); font-size: 10.5px; margin-top: 9px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
         .kpi.acento-rojo { background: var(--rojo-soft); border-color: rgba(198,29,45,0.3); }
         .kpi.acento-rojo .kpi-valor { color: var(--rojo); }
         .kpi.acento-exito { background: var(--success-soft); border-color: rgba(30,142,79,0.3); }
@@ -1006,21 +1007,20 @@ export default function EcoRadar() {
         .kpi.acento-plomo .kpi-valor { color: var(--warning); }
 
         .grid-dos { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
-        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px 20px; margin-bottom: 18px; }
-        .panel-titulo { font-size: 15px; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; }
+        .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px 22px; margin-bottom: 18px; box-shadow: 0 1px 3px rgba(20,22,25,0.04); }
+        .panel-titulo { font-size: 12.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--plomo-oscuro); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
         .panel-titulo .ver-mas { font-size: 11.5px; color: var(--dim); font-weight: 400; }
 
-        .fila-persona { display: flex; align-items: center; gap: 11px; padding: 9px 0; border-bottom: 1px solid var(--border); }
-        .fila-persona:last-child { border-bottom: none; }
-        .avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 11.5px; font-weight: 600; color: var(--muted); flex-shrink: 0; border: 1px solid var(--border); }
-        .persona-nombre { font-size: 13.5px; font-weight: 500; }
+        .fila-persona { display: flex; align-items: center; gap: 12px; padding: 11px 12px; border-radius: 10px; margin-bottom: 4px; }
+        .fila-persona:hover { background: var(--surface-2); }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 800; color: var(--rojo); flex-shrink: 0; border: 2px solid var(--rojo-soft); }
+        .persona-nombre { font-size: 13.5px; font-weight: 700; }
         .persona-tarea { font-size: 12px; color: var(--muted); }
         .estado-texto { font-size: 11px; color: var(--muted); margin-left: auto; white-space: nowrap; }
 
-        .alerta { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
-        .alerta:last-child { border-bottom: none; }
+        .alerta { display: flex; gap: 10px; padding: 11px 12px; border-radius: 10px; background: var(--rojo-soft); margin-bottom: 6px; }
         .alerta svg { width: 15px; height: 15px; color: var(--rojo); flex-shrink: 0; margin-top: 1px; }
-        .alerta-texto { font-size: 12.5px; }
+        .alerta-texto { font-size: 12.5px; font-weight: 600; }
         .alerta-hora { font-size: 11px; color: var(--dim); }
 
         .barra-fila { margin-bottom: 13px; }
@@ -1491,7 +1491,7 @@ export default function EcoRadar() {
       {enWorkspace && (
         <>
           <aside className="sidebar">
-            <div className="marca"><span className="punto" /><div><div className="marca-texto">ECO RADAR</div><div className="marca-sub">Comunicación integral</div></div></div>
+            <div className="marca"><div className="marca-badge">ER</div><div><div className="marca-texto">ECO RADAR</div><div className="marca-sub">Comunicación integral</div></div></div>
             <div className="empresa-actual">
               <div className="nombre">Comunicación GAD Manta</div>
               <div className="usuario">{nombreVisible} · {rolActual}</div>
