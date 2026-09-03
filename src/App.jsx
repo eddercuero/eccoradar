@@ -1255,6 +1255,7 @@ export default function EcoRadar() {
   const [canalesContenidoDisponibles, setCanalesContenidoDisponibles] = useState(() => cargar("eco_gad_canales_contenido", CANALES_CONTENIDO_SEED));
   const [responsablesUnidad, setResponsablesUnidad] = useState(() => cargar("eco_gad_responsables_unidad", {}));
   const [reportesDiarios, setReportesDiarios] = useState(() => cargar("eco_gad_reportes_diarios", []));
+  const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar("eco_gad_solicitudes_apoyo", []));
   const [contenidoPlan, setContenidoPlan] = useState(() => cargar("eco_gad_contenido_plan", []));
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
   const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
@@ -1548,7 +1549,6 @@ export default function EcoRadar() {
   const [contenidoAbierto, setContenidoAbierto] = useState(null);
   const [unidadReportando, setUnidadReportando] = useState(null);
   const [personaExpandidaMando, setPersonaExpandidaMando] = useState(null);
-  const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar("eco_gad_solicitudes_apoyo", []));
   const [mostrarFormApoyo, setMostrarFormApoyo] = useState(false);
   const [nuevaSolicitudApoyo, setNuevaSolicitudApoyo] = useState({ unidadSolicitante: "", autor: "", unidadDestino: "", descripcion: "" });
   const [semanaOffsetContenido, setSemanaOffsetContenido] = useState(0);
