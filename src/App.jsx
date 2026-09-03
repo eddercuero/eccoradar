@@ -220,6 +220,13 @@ function estadoDeHoy(persona, hoyISO) {
   if (activa) return { texto: activa.tipo, color: COLOR_AUSENCIA[activa.tipo] || "gris" };
   return { texto: "Trabajando", color: "verde" };
 }
+const DIAS_SEMANA_H = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+const MODALIDADES_TRABAJO = ["Oficina", "Campo", "Teletrabajo"];
+function horarioSemanaDefault() {
+  const h = {};
+  DIAS_SEMANA_H.forEach((d, i) => { h[d] = { trabaja: i < 5, inicio: "08:00", fin: "16:00" }; });
+  return h;
+}
 
 /* ---------- visor en vivo: contenido real de cada red, sin analizar nada ---------- */
 
@@ -850,6 +857,13 @@ function EstilosGlobales() {
         .equipo-hoy-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
         .equipo-hoy-nombre { font-size: 12px; font-weight: 700; }
         .equipo-hoy-rol { font-size: 10.5px; color: var(--dim); margin-top: -4px; }
+        .equipo-hoy-modalidad { font-size: 10px; color: var(--muted); margin-top: 2px; }
+        .chip-sm { padding: 3px 9px; font-size: 10px; }
+        .horario-semana { display: flex; flex-direction: column; gap: 6px; }
+        .horario-dia-fila { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+        .horario-dia-nombre { width: 28px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+        .horario-dia-fila input[type=time] { padding: 4px 6px; font-size: 11px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); font-family: inherit; width: 88px; }
+        .horario-dia-libre { color: var(--dim); font-style: italic; }
         .ficha-subtitulo { font-size: 11.5px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
         .ficha-item-fila { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
 
@@ -1303,7 +1317,6 @@ export default function EcoRadar() {
   }
 
   const [fichaAbierta, setFichaAbierta] = useState(null);
-  const [formHorario, setFormHorario] = useState({});
   const [formTareaFrec, setFormTareaFrec] = useState({});
 
   function subirFoto(personaId, file) {
@@ -1312,12 +1325,16 @@ export default function EcoRadar() {
     lector.onload = () => setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, foto: lector.result } : p));
     lector.readAsDataURL(file);
   }
-  function agregarHorarioPersona(personaId) {
-    const f = formHorario[personaId] || { dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" };
-    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, horario: [...(p.horario || []), { id: Date.now(), ...f }] } : p));
+  function actualizarHorarioDia(personaId, dia, campo, valor) {
+    setPersonas(prev => prev.map(p => {
+      if (p.id !== personaId) return p;
+      const horarioSemana = { ...(p.horarioSemana || horarioSemanaDefault()) };
+      horarioSemana[dia] = { ...horarioSemana[dia], [campo]: valor };
+      return { ...p, horarioSemana };
+    }));
   }
-  function eliminarHorarioPersona(personaId, itemId) {
-    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, horario: p.horario.filter(h => h.id !== itemId) }));
+  function cambiarModalidadTrabajo(personaId, valor) {
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, modalidadTrabajo: valor } : p));
   }
   function agregarTareaFrecPersona(personaId) {
     const f = formTareaFrec[personaId];
@@ -2305,6 +2322,11 @@ export default function EcoRadar() {
                         <div style={{ flex: 1 }}>
                           <div className="ficha-nombre">{p.nombre}</div>
                           <div className="ficha-meta">{p.rol} · {p.modalidad || "sin modalidad"} · código <span className="etiqueta etq-baja">{p.codigo}</span>{p.jefeDirecto && <> · reporta a {p.jefeDirecto}</>}</div>
+                          <div className="chips" style={{ marginTop: 8, marginBottom: 0 }}>
+                            {MODALIDADES_TRABAJO.map(m => (
+                              <div key={m} className={"chip chip-sm" + ((p.modalidadTrabajo || "Oficina") === m ? " activo" : "")} onClick={() => cambiarModalidadTrabajo(p.id, m)}>Hoy: {m}</div>
+                            ))}
+                          </div>
                         </div>
                         <button className="btn btn-sm" onClick={() => setFichaAbierta(fichaAbierta === p.id ? null : p.id)}>{fichaAbierta === p.id ? "Cerrar" : "Ver ficha"}</button>
                         {p.id !== usuarioActual?.id && <Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarPersona(p.id)} />}
@@ -2313,14 +2335,24 @@ export default function EcoRadar() {
                       {fichaAbierta === p.id && (
                         <div className="ficha-detalle">
                           <div className="ficha-columna">
-                            <div className="ficha-subtitulo"><CalendarClock style={{ width: 13, height: 13 }} /> Horario frecuente</div>
-                            {(p.horario || []).map(h => (<div className="ficha-item-fila" key={h.id}><span>{h.dia}: {h.horaInicio} – {h.horaFin}</span><Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarHorarioPersona(p.id, h.id)} /></div>))}
-                            {(p.horario || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin horario definido.</div>}
-                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 0 }}>
-                              <select value={(formHorario[p.id] || {}).dia || "Lunes"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), dia: e.target.value } })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
-                              <input type="time" value={(formHorario[p.id] || {}).horaInicio || "08:00"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), horaInicio: e.target.value } })} />
-                              <input type="time" value={(formHorario[p.id] || {}).horaFin || "16:00"} onChange={e => setFormHorario({ ...formHorario, [p.id]: { ...(formHorario[p.id] || {}), horaFin: e.target.value } })} />
-                              <button className="btn btn-sm" onClick={() => agregarHorarioPersona(p.id)}><Plus /></button>
+                            <div className="ficha-subtitulo"><CalendarClock style={{ width: 13, height: 13 }} /> Horario semanal</div>
+                            <div className="horario-semana">
+                              {DIAS_SEMANA_H.map(dia => {
+                                const info = (p.horarioSemana || horarioSemanaDefault())[dia];
+                                return (
+                                  <div key={dia} className="horario-dia-fila">
+                                    <div className={"switch" + (info.trabaja ? " on" : "")} onClick={() => actualizarHorarioDia(p.id, dia, "trabaja", !info.trabaja)}><div className="bolita" /></div>
+                                    <span className="horario-dia-nombre">{dia.slice(0, 3)}</span>
+                                    {info.trabaja ? (
+                                      <>
+                                        <input type="time" value={info.inicio} onChange={e => actualizarHorarioDia(p.id, dia, "inicio", e.target.value)} />
+                                        <span style={{ color: "var(--dim)", fontSize: 11 }}>a</span>
+                                        <input type="time" value={info.fin} onChange={e => actualizarHorarioDia(p.id, dia, "fin", e.target.value)} />
+                                      </>
+                                    ) : <span className="horario-dia-libre">Libre</span>}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                           <div className="ficha-columna">
@@ -2388,6 +2420,7 @@ export default function EcoRadar() {
                           <div className="equipo-hoy-nombre">{p.nombre}</div>
                           <div className="equipo-hoy-rol">{p.rol}</div>
                           <span className={"etiqueta estado-" + est.color}>{est.texto}</span>
+                          {est.texto === "Trabajando" && <div className="equipo-hoy-modalidad">📍 {p.modalidadTrabajo || "Oficina"}</div>}
                         </div>
                       );
                     })}
