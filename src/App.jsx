@@ -127,8 +127,8 @@ function accesoPorRol(rol, forzarAdmin) {
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
 
 const PERSONAS_SEED = [
-  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: ROL_DIRECTORA, area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "", foto: "", horario: [], tareasFrecuentes: [] },
-  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "Directora de Comunicación", foto: "", horario: [], tareasFrecuentes: [] },
+  { id: 1, codigo: "directora", clave: "directora2026", nombre: "Directora de Comunicación", rol: ROL_DIRECTORA, area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "", foto: "", horario: [], tareasFrecuentes: [], ausencias: [] },
+  { id: 2, codigo: "001", clave: "001", nombre: "Usuario 001", rol: "Diseñador", area: "Institucional", modalidad: "LOSEP", unidad: UNIDADES_SEED[0], jefeDirecto: "Directora de Comunicación", foto: "", horario: [], tareasFrecuentes: [], ausencias: [] },
 ];
 
 const VACIO = {
@@ -211,6 +211,14 @@ function cargar(clave, porDefecto) {
 }
 function guardar(clave, valor) {
   try { localStorage.setItem(clave, JSON.stringify(valor)); } catch { /* noop */ }
+}
+const TIPOS_AUSENCIA = ["Vacaciones", "Permiso médico", "Permiso personal", "Permiso institucional", "Día libre"];
+const COLOR_AUSENCIA = { "Vacaciones": "morado", "Permiso médico": "amarillo", "Permiso personal": "amarillo", "Permiso institucional": "amarillo", "Día libre": "gris" };
+function estadoDeHoy(persona, hoyISO) {
+  const ausencias = persona.ausencias || [];
+  const activa = ausencias.find(a => a.fechaInicio <= hoyISO && hoyISO <= (a.fechaFin || a.fechaInicio));
+  if (activa) return { texto: activa.tipo, color: COLOR_AUSENCIA[activa.tipo] || "gris" };
+  return { texto: "Trabajando", color: "verde" };
 }
 
 /* ---------- visor en vivo: contenido real de cada red, sin analizar nada ---------- */
@@ -710,7 +718,7 @@ export default function EcoRadar() {
   const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
-    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol) }]);
+    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol), ausencias: [] }]);
     setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
     setMostrarFormPersona(false);
   }
@@ -816,6 +824,17 @@ export default function EcoRadar() {
     setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.filter(t => t.id !== itemId) }));
   }
 
+  const [formAusencia, setFormAusencia] = useState({});
+  function agregarAusenciaPersona(personaId) {
+    const f = formAusencia[personaId];
+    if (!f || !f.fechaInicio) return;
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, ausencias: [...(p.ausencias || []), { id: Date.now(), tipo: f.tipo || TIPOS_AUSENCIA[0], fechaInicio: f.fechaInicio, fechaFin: f.fechaFin || f.fechaInicio, motivo: f.motivo || "" }] } : p));
+    setFormAusencia({ ...formAusencia, [personaId]: { tipo: TIPOS_AUSENCIA[0], fechaInicio: "", fechaFin: "", motivo: "" } });
+  }
+  function eliminarAusenciaPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, ausencias: (p.ausencias || []).filter(a => a.id !== itemId) }));
+  }
+
   function descargarPlantillaExcel() {
     const filas = [
       { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación" },
@@ -839,7 +858,7 @@ export default function EcoRadar() {
         nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
         rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
         modalidad: String(f.Modalidad || modalidadesDisponibles[0]), jefeDirecto: f.JefeDirecto ? String(f.JefeDirecto) : "",
-        unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [],
+        unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [], ausencias: [],
       }));
       if (nuevas.length) {
         setPersonas(prev => [...prev, ...nuevas]);
@@ -1289,7 +1308,20 @@ export default function EcoRadar() {
         .ficha-avatar-editar svg { width: 9px; height: 9px; color: #fff; }
         .ficha-nombre { font-size: 13.5px; font-weight: 600; }
         .ficha-meta { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
-        .ficha-detalle { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
+        .ficha-detalle { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; padding: 14px; border-top: 1px solid var(--border); background: var(--surface-2); }
+        .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+        .estado-punto-verde { background: var(--success); }
+        .estado-punto-amarillo { background: var(--warning); }
+        .estado-punto-morado { background: #8B5CF6; }
+        .estado-punto-gris { background: var(--dim); }
+        .etiqueta.estado-verde { background: var(--success-soft); color: var(--success); }
+        .etiqueta.estado-amarillo { background: var(--warning-soft); color: var(--warning); }
+        .etiqueta.estado-morado { background: rgba(139,92,246,0.14); color: #7C3AED; }
+        .etiqueta.estado-gris { background: var(--surface-2); color: var(--dim); }
+        .equipo-hoy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 14px; }
+        .equipo-hoy-card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 10px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+        .equipo-hoy-nombre { font-size: 12px; font-weight: 700; }
+        .equipo-hoy-rol { font-size: 10.5px; color: var(--dim); margin-top: -4px; }
         .ficha-subtitulo { font-size: 11.5px; font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
         .ficha-item-fila { display: flex; justify-content: space-between; align-items: center; font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--border); }
 
@@ -2178,6 +2210,33 @@ export default function EcoRadar() {
 
             {modulo === "roles" && esAdmin && (
               <>
+                <div className="kpis">
+                  <div className="kpi acento-acero"><div className="kpi-valor">{personasUnidad.length}</div><div className="kpi-label">Personas en {unidadActual}</div></div>
+                  <div className="kpi acento-exito"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Trabajando").length}</div><div className="kpi-label">Trabajando hoy</div></div>
+                  <div className="kpi acento-plomo"><div className="kpi-valor">{personasUnidad.filter(p => estadoDeHoy(p, hoyISO).texto === "Vacaciones").length}</div><div className="kpi-label">De vacaciones hoy</div></div>
+                  <div className="kpi acento-rojo"><div className="kpi-valor">{tareas.filter(t => personasUnidad.some(p => p.nombre === t.responsable) && t.estado !== "Completado" && t.prioridad === "Alta").length}</div><div className="kpi-label">Tareas urgentes pendientes</div></div>
+                </div>
+
+                <div className="panel">
+                  <div className="panel-titulo">¿Dónde está mi equipo hoy?</div>
+                  <div className="equipo-hoy-grid">
+                    {personasUnidad.map(p => {
+                      const est = estadoDeHoy(p, hoyISO);
+                      return (
+                        <div key={p.id} className="equipo-hoy-card">
+                          <div className="ficha-avatar" style={{ cursor: "default" }}>
+                            {p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}
+                          </div>
+                          <div className="equipo-hoy-nombre">{p.nombre}</div>
+                          <div className="equipo-hoy-rol">{p.rol}</div>
+                          <span className={"etiqueta estado-" + est.color}>{est.texto}</span>
+                        </div>
+                      );
+                    })}
+                    {personasUnidad.length === 0 && <div className="campo-vacio">Agrega personas a este equipo para verlas aquí.</div>}
+                  </div>
+                </div>
+
                 <div className="panel">
                   <div className="panel-titulo">¿Qué equipo quieres gestionar?</div>
                   <div className="chips">
@@ -2319,6 +2378,27 @@ export default function EcoRadar() {
                               <select value={(formTareaFrec[p.id] || {}).dia || "Lunes"} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), dia: e.target.value } })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
                               <input type="text" placeholder="Ej. 3 videos" value={(formTareaFrec[p.id] || {}).tarea || ""} onChange={e => setFormTareaFrec({ ...formTareaFrec, [p.id]: { ...(formTareaFrec[p.id] || {}), tarea: e.target.value } })} />
                               <button className="btn btn-sm" onClick={() => agregarTareaFrecPersona(p.id)}><Plus /></button>
+                            </div>
+                          </div>
+                          <div className="ficha-columna">
+                            <div className="ficha-subtitulo">🌴 Vacaciones y permisos</div>
+                            {(p.ausencias || []).map(a => (
+                              <div className="ficha-item-fila" key={a.id}>
+                                <span><span className={"estado-punto estado-punto-" + (COLOR_AUSENCIA[a.tipo] || "gris")} />{a.tipo}: {a.fechaInicio}{a.fechaFin && a.fechaFin !== a.fechaInicio ? " a " + a.fechaFin : ""}{a.motivo ? " — " + a.motivo : ""}</span>
+                                <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarAusenciaPersona(p.id, a.id)} />
+                              </div>
+                            ))}
+                            {(p.ausencias || []).length === 0 && <div className="campo-vacio" style={{ padding: "6px 0" }}>Sin vacaciones ni permisos registrados.</div>}
+                            <div className="form-inline" style={{ marginTop: 8, marginBottom: 4 }}>
+                              <select value={(formAusencia[p.id] || {}).tipo || TIPOS_AUSENCIA[0]} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), tipo: e.target.value } })}>{TIPOS_AUSENCIA.map(t => <option key={t}>{t}</option>)}</select>
+                            </div>
+                            <div className="form-inline" style={{ marginBottom: 4 }}>
+                              <input type="date" value={(formAusencia[p.id] || {}).fechaInicio || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaInicio: e.target.value } })} />
+                              <input type="date" value={(formAusencia[p.id] || {}).fechaFin || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), fechaFin: e.target.value } })} />
+                            </div>
+                            <div className="form-inline" style={{ marginBottom: 0 }}>
+                              <input type="text" placeholder="Motivo (opcional)" value={(formAusencia[p.id] || {}).motivo || ""} onChange={e => setFormAusencia({ ...formAusencia, [p.id]: { ...(formAusencia[p.id] || {}), motivo: e.target.value } })} />
+                              <button className="btn btn-sm" onClick={() => agregarAusenciaPersona(p.id)}><Plus /> Registrar</button>
                             </div>
                           </div>
                         </div>
