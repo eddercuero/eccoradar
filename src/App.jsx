@@ -457,480 +457,8 @@ function NodoOrganigrama({ persona, hijosDe }) {
   );
 }
 
-/* ---------- componente principal ---------- */
-
-export default function EcoRadar() {
-  const [sesion, setSesion] = useState(() => cargar("eco_radar_sesion", null));
-  const [paso, setPaso] = useState("selector");
-  const [empresaEnProceso, setEmpresaEnProceso] = useState(null);
-  const [claveEmpresaInput, setClaveEmpresaInput] = useState("");
-  const [loginCodigo, setLoginCodigo] = useState("");
-  const [loginClave, setLoginClave] = useState("");
-  const [errorLogin, setErrorLogin] = useState("");
-
-  const [personas, setPersonas] = useState(() => {
-    const cargadas = cargar("eco_gad_personas", VACIO.personas);
-    // migración: cuentas guardadas antes de renombrar "Directora" a "Director/a de Comunicación"
-    return cargadas.map(p => (p.rol === "Directora" ? { ...p, rol: ROL_DIRECTORA } : p));
-  });
-  const [rolesDisponibles, setRolesDisponibles] = useState(() => {
-    const guardados = cargar("eco_gad_roles_disp", ROLES_SEED);
-    return Array.from(new Set([...ROLES_SEED, ...guardados]));
-  });
-  const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
-  const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
-  const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
-  const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
-    const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
-    return Array.from(new Set([...TIPOS_ENTREGABLE, ...guardados]));
-  });
-  const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
-  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
-  const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
-  const [metas, setMetas] = useState(() => cargar("eco_gad_metas", VACIO.metas));
-  const [turnos, setTurnos] = useState(() => cargar("eco_gad_turnos", VACIO.turnos));
-  const [proyectos, setProyectos] = useState(() => cargar("eco_gad_proyectos", VACIO.proyectos));
-  const [cuentas, setCuentas] = useState(() => cargar("eco_gad_cuentas", CUENTAS_INICIALES));
-  const [cobertura, setCobertura] = useState(() => cargar("eco_gad_cobertura", COBERTURA_BASE));
-  const [web, setWeb] = useState(() => cargar("eco_gad_web", []));
-  const [eventos, setEventos] = useState(() => cargar("eco_gad_eventos", VACIO.eventos));
-
-  useEffect(() => guardar("eco_gad_personas", personas), [personas]);
-  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
-  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
-  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
-  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
-  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
-  useEffect(() => guardar("eco_gad_tareas", tareas), [tareas]);
-  useEffect(() => guardar("eco_gad_metas", metas), [metas]);
-  useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
-  useEffect(() => guardar("eco_gad_proyectos", proyectos), [proyectos]);
-  useEffect(() => guardar("eco_gad_cuentas", cuentas), [cuentas]);
-  useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
-  useEffect(() => guardar("eco_gad_web", web), [web]);
-  useEffect(() => guardar("eco_gad_eventos", eventos), [eventos]);
-
-  const [modulo, setModulo] = useState("resumen");
-  const [reloj, setReloj] = useState(new Date());
-  const [vistaTV, setVistaTV] = useState(false);
-  const [empresaAsesorViendo, setEmpresaAsesorViendo] = useState(null);
-  const [cuentaAbierta, setCuentaAbierta] = useState(null);
-  const [correoEnviado, setCorreoEnviado] = useState(false);
-
-  useEffect(() => { const t = setInterval(() => setReloj(new Date()), 1000 * 30); return () => clearInterval(t); }, []);
-
-  function iniciarSesionEmpresa(id) {
-    const emp = EMPRESAS.find(e => e.id === id);
-    if (!emp || !emp.activa) return;
-    setEmpresaEnProceso(id); setErrorLogin(""); setPaso("clave-empresa");
-  }
-  function confirmarClaveEmpresa() {
-    const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
-    if (claveEmpresaInput === emp.clave) { setErrorLogin(""); setPaso("login-usuario"); }
-    else setErrorLogin("Clave de empresa incorrecta.");
-  }
-  function confirmarLoginUsuario() {
-    const persona = personas.find(p => p.codigo === loginCodigo.trim() && p.clave === loginClave);
-    if (!persona) { setErrorLogin("Código o clave incorrectos."); return; }
-    const nuevaSesion = { tipo: "usuario", empresaId: empresaEnProceso, usuarioId: persona.id };
-    guardar("eco_radar_sesion", nuevaSesion);
-    setSesion(nuevaSesion);
-  }
-  function confirmarClaveAsesor() {
-    if (claveEmpresaInput === CLAVE_ASESOR) {
-      const nuevaSesion = { tipo: "asesor" };
-      guardar("eco_radar_sesion", nuevaSesion);
-      setSesion(nuevaSesion);
-    } else setErrorLogin("Clave de asesor incorrecta.");
-  }
-  function cerrarSesion() {
-    localStorage.removeItem("eco_radar_sesion");
-    setSesion(null); setPaso("selector"); setEmpresaEnProceso(null);
-    setClaveEmpresaInput(""); setLoginCodigo(""); setLoginClave(""); setErrorLogin("");
-    setEmpresaAsesorViendo(null); setModulo("resumen");
-  }
-
-  const usuarioActual = sesion?.tipo === "usuario" ? personas.find(p => p.id === sesion.usuarioId) : null;
-  const rolActual = sesion?.tipo === "asesor" ? "Asesor" : (usuarioActual ? usuarioActual.rol : null);
-  const esCodigoDirectora = usuarioActual?.codigo === "directora";
-  const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor" || esCodigoDirectora;
-  const accesoPermitido = rolActual ? accesoPorRol(rolActual, esCodigoDirectora) : [];
-
-  useEffect(() => { if (rolActual && !accesoPermitido.includes(modulo)) setModulo(accesoPermitido[0]); /* eslint-disable-next-line */ }, [rolActual]);
-
-  const enWorkspace = (sesion?.tipo === "usuario") || (sesion?.tipo === "asesor" && empresaAsesorViendo === "comunicacion_gad");
-  const nombreVisible = usuarioActual ? usuarioActual.nombre : "Asesor";
-
-  const tareasVisibles = esAdmin ? tareas : tareas.filter(t => t.responsable === nombreVisible);
-  const metasPropias = esAdmin ? metas : metas.filter(m => m.persona === nombreVisible);
-  const turnosVisibles = esAdmin ? turnos : turnos.filter(t => t.persona === nombreVisible);
-  const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
-  const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
-  const hoyISO = reloj.toISOString().slice(0, 10);
-  const resumenRedesHoy = useMemo(() => {
-    let revisadas = 0, alertas = 0;
-    cuentas.forEach(c => {
-      const registrosHoy = (c.registros || []).filter(r => r.fechaISO && r.fechaISO.slice(0, 10) === hoyISO);
-      if (registrosHoy.length > 0) revisadas++;
-      if (registrosHoy.some(r => colorCalificacion(r.calificacion) === "rojo")) alertas++;
-    });
-    return { total: cuentas.length, revisadas, pendientes: cuentas.length - revisadas, alertas };
-  }, [cuentas, hoyISO]);
-  const rankingPaginas = useMemo(() => {
-    return [...cuentas].map(c => {
-      const registros = c.registros || [];
-      const ultimo = registros[registros.length - 1];
-      const revisadaHoy = ultimo && ultimo.fechaISO && ultimo.fechaISO.slice(0, 10) === hoyISO;
-      const noPublico = ultimo && ultimo.calificacion === "No publicó hoy";
-      return { ...c, totalRegistros: registros.length, ultimo, revisadaHoy, noPublico };
-    }).sort((a, b) => b.totalRegistros - a.totalRegistros || (b.ultimo?.fechaISO || "").localeCompare(a.ultimo?.fechaISO || ""));
-  }, [cuentas, hoyISO]);
-  const cuentasEnAlerta = cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length;
-  const tareasCompletadasHoy = tareasVisibles.filter(t => t.estado === "Completado").length;
-
-  /* ---- formularios ---- */
-  const [filtroArea, setFiltroArea] = useState("Todas");
-  const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
-  const personasEquipo = personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
-  const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
-  function agregarTarea() {
-    if (!nuevaTarea.tarea.trim() || !nuevaTarea.responsable) return;
-    const vence = nuevaTarea.frecuencia === "Frecuente" ? `Cada ${nuevaTarea.dia}` : "Sin definir";
-    setTareas([{ id: Date.now(), tarea: nuevaTarea.tarea, responsable: nuevaTarea.responsable, prioridad: nuevaTarea.prioridad, estado: "Pendiente", vence, area: nuevaTarea.area, frecuencia: nuevaTarea.frecuencia, dia: nuevaTarea.dia }, ...tareas]);
-    setNuevaTarea({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
-    setMostrarFormTarea(false);
-  }
-  function cambiarEstadoTarea(id) {
-    setTareas(tareas.map(t => {
-      if (t.id !== id) return t;
-      const orden = ["Pendiente", "En progreso", "Completado"];
-      return { ...t, estado: orden[(orden.indexOf(t.estado) + 1) % orden.length] };
-    }));
-  }
-  function eliminarTarea(id) { setTareas(tareas.filter(t => t.id !== id)); }
-
-  const [mostrarFormTurno, setMostrarFormTurno] = useState(false);
-  const [nuevoTurno, setNuevoTurno] = useState({ persona: "", dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" });
-  function agregarTurno() {
-    if (!nuevoTurno.persona) return;
-    setTurnos([{ id: Date.now(), ...nuevoTurno }, ...turnos]);
-    setMostrarFormTurno(false);
-  }
-  function eliminarTurno(id) { setTurnos(turnos.filter(t => t.id !== id)); }
-
-  const [mostrarFormMeta, setMostrarFormMeta] = useState(false);
-  const [nuevaMeta, setNuevaMeta] = useState({ persona: "", entregable: "", metaHoy: 1, metaSemana: 5, area: AREAS[0] });
-  function agregarMeta() {
-    if (!nuevaMeta.entregable.trim() || !nuevaMeta.persona) return;
-    setMetas([{ id: Date.now(), persona: nuevaMeta.persona, rol: (personas.find(p => p.nombre === nuevaMeta.persona) || {}).rol || "", entregable: nuevaMeta.entregable, metaHoy: Number(nuevaMeta.metaHoy) || 1, avanceHoy: 0, metaSemana: Number(nuevaMeta.metaSemana) || 1, avanceSemana: 0, area: nuevaMeta.area }, ...metas]);
-    setNuevaMeta({ persona: "", entregable: "", metaHoy: 1, metaSemana: 5, area: AREAS[0] });
-    setMostrarFormMeta(false);
-  }
-  function alimentarMeta(id, campo) { setMetas(metas.map(m => m.id === id ? { ...m, [campo]: m[campo] + 1 } : m)); }
-  function eliminarMeta(id) { setMetas(metas.filter(m => m.id !== id)); }
-
-  const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
-  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
-  const [mostrarSelectorEntregables, setMostrarSelectorEntregables] = useState(false);
-  const [tiposNuevoProyecto, setTiposNuevoProyecto] = useState([]);
-  function alternarTipoNuevoProyecto(tipo) {
-    setTiposNuevoProyecto(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
-  }
-  const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
-  const [modoDireccionManual, setModoDireccionManual] = useState(false);
-  const [modoTipoProyectoManual, setModoTipoProyectoManual] = useState(false);
-  const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
-  function agregarProyecto() {
-    if (!nuevoProyecto.nombre.trim()) return;
-    if (nuevoProyecto.tipo.trim() && !tiposProyectoDisponibles.includes(nuevoProyecto.tipo.trim())) {
-      setTiposProyectoDisponibles(prev => [...prev, nuevoProyecto.tipo.trim()]);
-    }
-    if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
-      setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
-    }
-    const entregablesIniciales = tiposNuevoProyecto.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: "", fecha: "", completado: false }));
-    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: entregablesIniciales }, ...proyectos]);
-    setNuevoProyecto({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
-    setMostrarFormProyecto(false);
-    setModoEncargadoManual(false);
-    setModoDireccionManual(false);
-    setModoTipoProyectoManual(false);
-    setTiposNuevoProyecto([]);
-  }
-  function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
-  function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
-  const [entregableForm, setEntregableForm] = useState({});
-  function agregarEntregable(proyectoId) {
-    const f = entregableForm[proyectoId];
-    if (!f || !f.responsable || !f.tipos || f.tipos.length === 0) return;
-    const nuevos = f.tipos.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: f.responsable, fecha: f.fecha || "", completado: false }));
-    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, ...nuevos] } : p));
-    setEntregableForm({ ...entregableForm, [proyectoId]: { tipos: [], responsable: "", fecha: "" } });
-  }
-  function alternarTipoEntregableSeleccionado(proyectoId, tipo) {
-    setEntregableForm(prev => {
-      const actual = prev[proyectoId] || { tipos: [], responsable: "", fecha: "" };
-      const tipos = actual.tipos.includes(tipo) ? actual.tipos.filter(t => t !== tipo) : [...actual.tipos, tipo];
-      return { ...prev, [proyectoId]: { ...actual, tipos } };
-    });
-  }
-  function alternarEntregable(proyectoId, entregableId) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
-  }
-  function cambiarResponsableEntregable(proyectoId, entregableId, nuevoResponsable) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, responsable: nuevoResponsable } : e) }));
-  }
-  function eliminarEntregable(proyectoId, entregableId) {
-    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.filter(e => e.id !== entregableId) }));
-  }
-
-  const [linkNuevo, setLinkNuevo] = useState("");
-  const [tipoNuevaCuenta, setTipoNuevaCuenta] = useState("Atacante");
-  function agregarCuenta() {
-    if (!linkNuevo.trim()) return;
-    const plataforma = detectarPlataforma(linkNuevo);
-    const handleGenerado = "@" + (linkNuevo.split("/").filter(Boolean).pop() || "cuenta_nueva").slice(0, 20);
-    const idNueva = Date.now();
-    let url = linkNuevo.trim();
-    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
-    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, link: url, estado: "En vivo", registros: [] }, ...cuentas]);
-    setLinkNuevo("");
-  }
-  function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
-  function agregarRegistroCuenta(cuentaId, calificacion, nota) {
-    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), fechaISO: reloj.toISOString(), calificacion, nota, registradoPor: nombreVisible };
-    setCuentas(prev => prev.map(c => c.id === cuentaId ? { ...c, registros: [...(c.registros || []), nuevo] } : c));
-  }
-  function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
-  const [nuevoWeb, setNuevoWeb] = useState({ tipo: "Palabra clave Google", texto: "" });
-  function agregarWeb() {
-    if (!nuevoWeb.texto.trim()) return;
-    const idNueva = Date.now();
-    setWeb([{ id: idNueva, tipo: nuevoWeb.tipo, texto: nuevoWeb.texto, resultados: 0, revisado: "analizando…" }, ...web]);
-    setNuevoWeb({ tipo: "Palabra clave Google", texto: "" });
-    setTimeout(() => setWeb(prev => prev.map(w => w.id === idNueva ? { ...w, resultados: Math.round(Math.random() * 8), revisado: "hace instantes" } : w)), 1600);
-  }
-  function eliminarWeb(id) { setWeb(web.filter(w => w.id !== id)); }
-
-  const [mostrarFormPersona, setMostrarFormPersona] = useState(false);
-  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
-  function agregarPersona() {
-    if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
-    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol), ausencias: [] }]);
-    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
-    setMostrarFormPersona(false);
-  }
-  function eliminarPersona(id) { setPersonas(personas.filter(p => p.id !== id)); }
-
-  const [nuevoRolTexto, setNuevoRolTexto] = useState("");
-  function agregarRolNuevo() {
-    const v = nuevoRolTexto.trim();
-    if (!v || rolesDisponibles.includes(v)) return;
-    setRolesDisponibles([...rolesDisponibles, v]);
-    setNuevaPersona({ ...nuevaPersona, rol: v });
-    setNuevoRolTexto("");
-  }
-  const [nuevaModalidadTexto, setNuevaModalidadTexto] = useState("");
-  function agregarModalidadNueva() {
-    const v = nuevaModalidadTexto.trim();
-    if (!v || modalidadesDisponibles.includes(v)) return;
-    setModalidadesDisponibles([...modalidadesDisponibles, v]);
-    setNuevaPersona({ ...nuevaPersona, modalidad: v });
-    setNuevaModalidadTexto("");
-  }
-  const [nuevaUnidadTexto, setNuevaUnidadTexto] = useState("");
-  function agregarUnidadNueva() {
-    const v = nuevaUnidadTexto.trim();
-    if (!v || unidadesDisponibles.includes(v)) return;
-    setUnidadesDisponibles([...unidadesDisponibles, v]);
-    setUnidadActual(v);
-    setNuevaUnidadTexto("");
-  }
-  function eliminarUnidad(nombre) {
-    if (UNIDADES_SEED.includes(nombre)) return;
-    setUnidadesDisponibles(prev => prev.filter(u => u !== nombre));
-    if (unidadActual === nombre) setUnidadActual(UNIDADES_SEED[0]);
-  }
-  function eliminarRol(nombre) {
-    if (ROLES_SEED.includes(nombre)) return;
-    setRolesDisponibles(prev => prev.filter(r => r !== nombre));
-  }
-  function eliminarModalidad(nombre) {
-    if (MODALIDADES_SEED.includes(nombre)) return;
-    setModalidadesDisponibles(prev => prev.filter(m => m !== nombre));
-  }
-  function eliminarDireccionCatalogo(nombre) {
-    if (DIRECCIONES_SEED.includes(nombre)) return;
-    setDireccionesDisponibles(prev => prev.filter(d => d !== nombre));
-  }
-  function eliminarTipoProyectoCatalogo(nombre) {
-    if (TIPOS_PROYECTO_SEED.includes(nombre)) return;
-    setTiposProyectoDisponibles(prev => prev.filter(t => t !== nombre));
-  }
-  function eliminarTipoEntregableCatalogo(nombre) {
-    if (TIPOS_ENTREGABLE.includes(nombre)) return;
-    setTiposEntregableDisponibles(prev => prev.filter(t => t !== nombre));
-  }
-  const [nuevoTipoProyectoTexto, setNuevoTipoProyectoTexto] = useState("");
-  function agregarTipoProyectoNuevo() {
-    const v = nuevoTipoProyectoTexto.trim();
-    if (!v || tiposProyectoDisponibles.includes(v)) return;
-    setTiposProyectoDisponibles([...tiposProyectoDisponibles, v]);
-    setNuevoProyecto(prev => ({ ...prev, tipo: v }));
-    setNuevoTipoProyectoTexto("");
-  }
-  const [nuevaDireccionTexto, setNuevaDireccionTexto] = useState("");
-  function agregarDireccionNueva() {
-    const v = nuevaDireccionTexto.trim();
-    if (!v || direccionesDisponibles.includes(v)) return;
-    setDireccionesDisponibles([...direccionesDisponibles, v]);
-    setNuevoProyecto(prev => ({ ...prev, direccion: v }));
-    setNuevaDireccionTexto("");
-  }
-  const [nuevoTipoEntregableTexto, setNuevoTipoEntregableTexto] = useState("");
-  function agregarTipoEntregableNuevo() {
-    const v = nuevoTipoEntregableTexto.trim();
-    if (!v || tiposEntregableDisponibles.includes(v)) return;
-    setTiposEntregableDisponibles([...tiposEntregableDisponibles, v]);
-    setNuevoTipoEntregableTexto("");
-  }
-
-  const [fichaAbierta, setFichaAbierta] = useState(null);
-  const [formHorario, setFormHorario] = useState({});
-  const [formTareaFrec, setFormTareaFrec] = useState({});
-
-  function subirFoto(personaId, file) {
-    if (!file) return;
-    const lector = new FileReader();
-    lector.onload = () => setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, foto: lector.result } : p));
-    lector.readAsDataURL(file);
-  }
-  function agregarHorarioPersona(personaId) {
-    const f = formHorario[personaId] || { dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" };
-    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, horario: [...(p.horario || []), { id: Date.now(), ...f }] } : p));
-  }
-  function eliminarHorarioPersona(personaId, itemId) {
-    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, horario: p.horario.filter(h => h.id !== itemId) }));
-  }
-  function agregarTareaFrecPersona(personaId) {
-    const f = formTareaFrec[personaId];
-    if (!f || !f.tarea || !f.tarea.trim()) return;
-    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, tareasFrecuentes: [...(p.tareasFrecuentes || []), { id: Date.now(), dia: f.dia || "Lunes", tarea: f.tarea }] } : p));
-    setFormTareaFrec({ ...formTareaFrec, [personaId]: { dia: "Lunes", tarea: "" } });
-  }
-  function eliminarTareaFrecPersona(personaId, itemId) {
-    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.filter(t => t.id !== itemId) }));
-  }
-
-  const [formAusencia, setFormAusencia] = useState({});
-  function agregarAusenciaPersona(personaId) {
-    const f = formAusencia[personaId];
-    if (!f || !f.fechaInicio) return;
-    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, ausencias: [...(p.ausencias || []), { id: Date.now(), tipo: f.tipo || TIPOS_AUSENCIA[0], fechaInicio: f.fechaInicio, fechaFin: f.fechaFin || f.fechaInicio, motivo: f.motivo || "" }] } : p));
-    setFormAusencia({ ...formAusencia, [personaId]: { tipo: TIPOS_AUSENCIA[0], fechaInicio: "", fechaFin: "", motivo: "" } });
-  }
-  function eliminarAusenciaPersona(personaId, itemId) {
-    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, ausencias: (p.ausencias || []).filter(a => a.id !== itemId) }));
-  }
-
-  function descargarPlantillaExcel() {
-    const filas = [
-      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación" },
-    ];
-    const hoja = XLSX.utils.json_to_sheet(filas);
-    const libro = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(libro, hoja, "Personas");
-    XLSX.writeFile(libro, "plantilla-eco-radar-personas.xlsx");
-  }
-  function manejarSubidaExcel(evento) {
-    const archivo = evento.target.files[0];
-    if (!archivo) return;
-    const lector = new FileReader();
-    lector.onload = (e) => {
-      const datos = new Uint8Array(e.target.result);
-      const libro = XLSX.read(datos, { type: "array" });
-      const hoja = libro.Sheets[libro.SheetNames[0]];
-      const filas = XLSX.utils.sheet_to_json(hoja);
-      const nuevas = filas.filter(f => f.Nombre && f.Codigo).map((f, i) => ({
-        id: Date.now() + i,
-        nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
-        rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
-        modalidad: String(f.Modalidad || modalidadesDisponibles[0]), jefeDirecto: f.JefeDirecto ? String(f.JefeDirecto) : "",
-        unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [], ausencias: [],
-      }));
-      if (nuevas.length) {
-        setPersonas(prev => [...prev, ...nuevas]);
-        setRolesDisponibles(prevR => { const extra = nuevas.map(n => n.rol).filter(r => !prevR.includes(r)); return extra.length ? [...prevR, ...extra] : prevR; });
-        setModalidadesDisponibles(prevM => { const extra = nuevas.map(n => n.modalidad).filter(m => !prevM.includes(m)); return extra.length ? [...prevM, ...extra] : prevM; });
-      }
-    };
-    lector.readAsArrayBuffer(archivo);
-    evento.target.value = "";
-  }
-
-  const personasUnidad = useMemo(() => personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === unidadActual), [personas, unidadActual]);
-  function construirArbol(lista) {
-    const raices = lista.filter(p => !p.jefeDirecto || !lista.some(o => o.nombre === p.jefeDirecto));
-    function hijosDe(nombre) { return lista.filter(p => p.jefeDirecto === nombre); }
-    return { raices, hijosDe };
-  }
-  const arbolOrganigrama = useMemo(() => construirArbol(personasUnidad), [personasUnidad]);
-
-
-  const diasDelMes = useMemo(() => {
-    const year = 2026, month = 7;
-    const primerDia = new Date(year, month, 1);
-    const ultimoDia = new Date(year, month + 1, 0);
-    const inicioOffset = (primerDia.getDay() + 6) % 7;
-    const celdas = [];
-    for (let i = 0; i < inicioOffset; i++) celdas.push(null);
-    for (let d = 1; d <= ultimoDia.getDate(); d++) celdas.push(new Date(year, month, d));
-    return celdas;
-  }, []);
-  const [diaSeleccionado, setDiaSeleccionado] = useState(claveFecha(new Date(2026, 7, 31)));
-  const [nuevoEvento, setNuevoEvento] = useState({ h: "", t: "" });
-  function agregarEvento() {
-    if (!nuevoEvento.t.trim()) return;
-    setEventos(prev => ({ ...prev, [diaSeleccionado]: [...(prev[diaSeleccionado] || []), { h: nuevoEvento.h || "—", t: nuevoEvento.t }] }));
-    setNuevoEvento({ h: "", t: "" });
-  }
-
-  function generarPdfCierre() {
-    const doc = new jsPDF();
-    const fecha = reloj.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
-    let y = 18;
-    doc.setFontSize(16); doc.text("Eco Radar — Cierre del día", 14, y); y += 8;
-    doc.setFontSize(10); doc.text("Comunicación GAD Manta · " + fecha, 14, y); y += 10;
-    doc.setFontSize(12); doc.text("Tareas de hoy", 14, y); y += 6;
-    doc.setFontSize(9);
-    tareas.forEach(t => { doc.text(`- [${t.estado}] ${t.tarea} (${t.responsable})`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
-    if (tareas.length === 0) { doc.text("Sin tareas registradas hoy.", 14, y); y += 5; }
-    y += 6; doc.setFontSize(12); doc.text("Metas diarias y semanales", 14, y); y += 6; doc.setFontSize(9);
-    metas.forEach(m => { doc.text(`- ${m.persona}: ${m.entregable} — hoy ${m.avanceHoy}/${m.metaHoy}, semana ${m.avanceSemana}/${m.metaSemana} (${cumplimiento(m)}%)`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
-    if (metas.length === 0) { doc.text("Sin metas registradas.", 14, y); y += 5; }
-    y += 6; doc.setFontSize(12); doc.text("Avance de proyectos de la semana", 14, y); y += 6; doc.setFontSize(9);
-    proyectos.forEach(p => { doc.text(`- ${p.nombre} (${p.tipo}) — ${avanceProyecto(p)}% — semáforo: ${semaforoProyecto({ ...p, avance: avanceProyecto(p) })}`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
-    if (proyectos.length === 0) { doc.text("Sin proyectos registrados.", 14, y); y += 5; }
-    doc.save(`cierre-eco-radar-${claveFecha(reloj)}.pdf`);
-  }
-
-  const distribucionCarga = useMemo(() => {
-    const porPersona = {};
-    metas.forEach(m => { porPersona[m.persona] = (porPersona[m.persona] || 0) + m.metaSemana; });
-    const total = Object.values(porPersona).reduce((a, b) => a + b, 0);
-    return Object.entries(porPersona).map(([persona, valor], i) => ({ persona, valor, pct: total > 0 ? Math.round((valor / total) * 100) : 0, color: `hsl(${(i * 67) % 360}, 55%, 50%)` }));
-  }, [metas]);
-
-  const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
-
-  if (vistaTV && enWorkspace) {
-    return <ModoTV personas={personas} tareas={tareas} metas={metas} onSalir={() => setVistaTV(false)} />;
-  }
-
+function EstilosGlobales() {
   return (
-    <div className="app">
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 
@@ -1423,6 +951,484 @@ export default function EcoRadar() {
         .registro-fecha { font-size: 10.5px; color: var(--dim); }
         .registro-nota { font-size: 12px; color: var(--muted); margin-top: 6px; }
       `}</style>
+  );
+}
+
+/* ---------- componente principal ---------- */
+
+export default function EcoRadar() {
+  const [sesion, setSesion] = useState(() => cargar("eco_radar_sesion", null));
+  const [paso, setPaso] = useState("selector");
+  const [empresaEnProceso, setEmpresaEnProceso] = useState(null);
+  const [claveEmpresaInput, setClaveEmpresaInput] = useState("");
+  const [loginCodigo, setLoginCodigo] = useState("");
+  const [loginClave, setLoginClave] = useState("");
+  const [errorLogin, setErrorLogin] = useState("");
+
+  const [personas, setPersonas] = useState(() => {
+    const cargadas = cargar("eco_gad_personas", VACIO.personas);
+    // migración: cuentas guardadas antes de renombrar "Directora" a "Director/a de Comunicación"
+    return cargadas.map(p => (p.rol === "Directora" ? { ...p, rol: ROL_DIRECTORA } : p));
+  });
+  const [rolesDisponibles, setRolesDisponibles] = useState(() => {
+    const guardados = cargar("eco_gad_roles_disp", ROLES_SEED);
+    return Array.from(new Set([...ROLES_SEED, ...guardados]));
+  });
+  const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
+  const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
+  const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
+  const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
+    const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
+    return Array.from(new Set([...TIPOS_ENTREGABLE, ...guardados]));
+  });
+  const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
+  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
+  const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
+  const [metas, setMetas] = useState(() => cargar("eco_gad_metas", VACIO.metas));
+  const [turnos, setTurnos] = useState(() => cargar("eco_gad_turnos", VACIO.turnos));
+  const [proyectos, setProyectos] = useState(() => cargar("eco_gad_proyectos", VACIO.proyectos));
+  const [cuentas, setCuentas] = useState(() => cargar("eco_gad_cuentas", CUENTAS_INICIALES));
+  const [cobertura, setCobertura] = useState(() => cargar("eco_gad_cobertura", COBERTURA_BASE));
+  const [web, setWeb] = useState(() => cargar("eco_gad_web", []));
+  const [eventos, setEventos] = useState(() => cargar("eco_gad_eventos", VACIO.eventos));
+
+  useEffect(() => guardar("eco_gad_personas", personas), [personas]);
+  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
+  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
+  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
+  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
+  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
+  useEffect(() => guardar("eco_gad_tareas", tareas), [tareas]);
+  useEffect(() => guardar("eco_gad_metas", metas), [metas]);
+  useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
+  useEffect(() => guardar("eco_gad_proyectos", proyectos), [proyectos]);
+  useEffect(() => guardar("eco_gad_cuentas", cuentas), [cuentas]);
+  useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
+  useEffect(() => guardar("eco_gad_web", web), [web]);
+  useEffect(() => guardar("eco_gad_eventos", eventos), [eventos]);
+
+  const [modulo, setModulo] = useState("resumen");
+  const [reloj, setReloj] = useState(new Date());
+  const [vistaTV, setVistaTV] = useState(false);
+  const [empresaAsesorViendo, setEmpresaAsesorViendo] = useState(null);
+  const [cuentaAbierta, setCuentaAbierta] = useState(null);
+  const [correoEnviado, setCorreoEnviado] = useState(false);
+
+  useEffect(() => { const t = setInterval(() => setReloj(new Date()), 1000 * 30); return () => clearInterval(t); }, []);
+
+  function iniciarSesionEmpresa(id) {
+    const emp = EMPRESAS.find(e => e.id === id);
+    if (!emp || !emp.activa) return;
+    setEmpresaEnProceso(id); setErrorLogin(""); setPaso("clave-empresa");
+  }
+  function confirmarClaveEmpresa() {
+    const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
+    if (claveEmpresaInput === emp.clave) { setErrorLogin(""); setPaso("login-usuario"); }
+    else setErrorLogin("Clave de empresa incorrecta.");
+  }
+  function confirmarLoginUsuario() {
+    const persona = personas.find(p => p.codigo === loginCodigo.trim() && p.clave === loginClave);
+    if (!persona) { setErrorLogin("Código o clave incorrectos."); return; }
+    const nuevaSesion = { tipo: "usuario", empresaId: empresaEnProceso, usuarioId: persona.id };
+    guardar("eco_radar_sesion", nuevaSesion);
+    setSesion(nuevaSesion);
+  }
+  function confirmarClaveAsesor() {
+    if (claveEmpresaInput === CLAVE_ASESOR) {
+      const nuevaSesion = { tipo: "asesor" };
+      guardar("eco_radar_sesion", nuevaSesion);
+      setSesion(nuevaSesion);
+    } else setErrorLogin("Clave de asesor incorrecta.");
+  }
+  function cerrarSesion() {
+    localStorage.removeItem("eco_radar_sesion");
+    setSesion(null); setPaso("selector"); setEmpresaEnProceso(null);
+    setClaveEmpresaInput(""); setLoginCodigo(""); setLoginClave(""); setErrorLogin("");
+    setEmpresaAsesorViendo(null); setModulo("resumen");
+  }
+
+  const usuarioActual = sesion?.tipo === "usuario" ? personas.find(p => p.id === sesion.usuarioId) : null;
+  const rolActual = sesion?.tipo === "asesor" ? "Asesor" : (usuarioActual ? usuarioActual.rol : null);
+  const esCodigoDirectora = usuarioActual?.codigo === "directora";
+  const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor" || esCodigoDirectora;
+  const accesoPermitido = rolActual ? accesoPorRol(rolActual, esCodigoDirectora) : [];
+
+  useEffect(() => { if (rolActual && !accesoPermitido.includes(modulo)) setModulo(accesoPermitido[0]); /* eslint-disable-next-line */ }, [rolActual]);
+
+  const enWorkspace = (sesion?.tipo === "usuario") || (sesion?.tipo === "asesor" && empresaAsesorViendo === "comunicacion_gad");
+  const nombreVisible = usuarioActual ? usuarioActual.nombre : "Asesor";
+
+  const tareasVisibles = esAdmin ? tareas : tareas.filter(t => t.responsable === nombreVisible);
+  const metasPropias = esAdmin ? metas : metas.filter(m => m.persona === nombreVisible);
+  const turnosVisibles = esAdmin ? turnos : turnos.filter(t => t.persona === nombreVisible);
+  const proyectosVisibles = esAdmin ? proyectos : proyectos.filter(p => p.encargado === nombreVisible || p.entregables.some(e => e.responsable === nombreVisible));
+  const rankingOrdenado = useMemo(() => [...metas].sort((a, b) => cumplimiento(b) - cumplimiento(a)), [metas]);
+  const hoyISO = reloj.toISOString().slice(0, 10);
+  const resumenRedesHoy = useMemo(() => {
+    let revisadas = 0, alertas = 0;
+    cuentas.forEach(c => {
+      const registrosHoy = (c.registros || []).filter(r => r.fechaISO && r.fechaISO.slice(0, 10) === hoyISO);
+      if (registrosHoy.length > 0) revisadas++;
+      if (registrosHoy.some(r => colorCalificacion(r.calificacion) === "rojo")) alertas++;
+    });
+    return { total: cuentas.length, revisadas, pendientes: cuentas.length - revisadas, alertas };
+  }, [cuentas, hoyISO]);
+  const rankingPaginas = useMemo(() => {
+    return [...cuentas].map(c => {
+      const registros = c.registros || [];
+      const ultimo = registros[registros.length - 1];
+      const revisadaHoy = ultimo && ultimo.fechaISO && ultimo.fechaISO.slice(0, 10) === hoyISO;
+      const noPublico = ultimo && ultimo.calificacion === "No publicó hoy";
+      return { ...c, totalRegistros: registros.length, ultimo, revisadaHoy, noPublico };
+    }).sort((a, b) => b.totalRegistros - a.totalRegistros || (b.ultimo?.fechaISO || "").localeCompare(a.ultimo?.fechaISO || ""));
+  }, [cuentas, hoyISO]);
+  const cuentasEnAlerta = cuentas.filter(c => TIPOS_CUENTA_NEGATIVOS.includes(c.tipo)).length;
+  const tareasCompletadasHoy = tareasVisibles.filter(t => t.estado === "Completado").length;
+
+  /* ---- formularios ---- */
+  const [filtroArea, setFiltroArea] = useState("Todas");
+  const [mostrarFormTarea, setMostrarFormTarea] = useState(false);
+  const personasEquipo = personas.filter(p => p.rol !== ROL_DIRECTORA && p.rol !== "Asesor");
+  const [nuevaTarea, setNuevaTarea] = useState({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
+  function agregarTarea() {
+    if (!nuevaTarea.tarea.trim() || !nuevaTarea.responsable) return;
+    const vence = nuevaTarea.frecuencia === "Frecuente" ? `Cada ${nuevaTarea.dia}` : "Sin definir";
+    setTareas([{ id: Date.now(), tarea: nuevaTarea.tarea, responsable: nuevaTarea.responsable, prioridad: nuevaTarea.prioridad, estado: "Pendiente", vence, area: nuevaTarea.area, frecuencia: nuevaTarea.frecuencia, dia: nuevaTarea.dia }, ...tareas]);
+    setNuevaTarea({ tarea: "", responsable: "", prioridad: "Media", area: AREAS[0], frecuencia: "Específica", dia: "Lunes" });
+    setMostrarFormTarea(false);
+  }
+  function cambiarEstadoTarea(id) {
+    setTareas(tareas.map(t => {
+      if (t.id !== id) return t;
+      const orden = ["Pendiente", "En progreso", "Completado"];
+      return { ...t, estado: orden[(orden.indexOf(t.estado) + 1) % orden.length] };
+    }));
+  }
+  function eliminarTarea(id) { setTareas(tareas.filter(t => t.id !== id)); }
+
+  const [mostrarFormTurno, setMostrarFormTurno] = useState(false);
+  const [nuevoTurno, setNuevoTurno] = useState({ persona: "", dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" });
+  function agregarTurno() {
+    if (!nuevoTurno.persona) return;
+    setTurnos([{ id: Date.now(), ...nuevoTurno }, ...turnos]);
+    setMostrarFormTurno(false);
+  }
+  function eliminarTurno(id) { setTurnos(turnos.filter(t => t.id !== id)); }
+
+  const [mostrarFormMeta, setMostrarFormMeta] = useState(false);
+  const [nuevaMeta, setNuevaMeta] = useState({ persona: "", entregable: "", metaHoy: 1, metaSemana: 5, area: AREAS[0] });
+  function agregarMeta() {
+    if (!nuevaMeta.entregable.trim() || !nuevaMeta.persona) return;
+    setMetas([{ id: Date.now(), persona: nuevaMeta.persona, rol: (personas.find(p => p.nombre === nuevaMeta.persona) || {}).rol || "", entregable: nuevaMeta.entregable, metaHoy: Number(nuevaMeta.metaHoy) || 1, avanceHoy: 0, metaSemana: Number(nuevaMeta.metaSemana) || 1, avanceSemana: 0, area: nuevaMeta.area }, ...metas]);
+    setNuevaMeta({ persona: "", entregable: "", metaHoy: 1, metaSemana: 5, area: AREAS[0] });
+    setMostrarFormMeta(false);
+  }
+  function alimentarMeta(id, campo) { setMetas(metas.map(m => m.id === id ? { ...m, [campo]: m[campo] + 1 } : m)); }
+  function eliminarMeta(id) { setMetas(metas.filter(m => m.id !== id)); }
+
+  const [mostrarFormProyecto, setMostrarFormProyecto] = useState(false);
+  const [proyectoSeleccionado, setProyectoSeleccionado] = useState(null);
+  const [mostrarSelectorEntregables, setMostrarSelectorEntregables] = useState(false);
+  const [tiposNuevoProyecto, setTiposNuevoProyecto] = useState([]);
+  function alternarTipoNuevoProyecto(tipo) {
+    setTiposNuevoProyecto(prev => prev.includes(tipo) ? prev.filter(t => t !== tipo) : [...prev, tipo]);
+  }
+  const [modoEncargadoManual, setModoEncargadoManual] = useState(false);
+  const [modoDireccionManual, setModoDireccionManual] = useState(false);
+  const [modoTipoProyectoManual, setModoTipoProyectoManual] = useState(false);
+  const [nuevoProyecto, setNuevoProyecto] = useState({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
+  function agregarProyecto() {
+    if (!nuevoProyecto.nombre.trim()) return;
+    if (nuevoProyecto.tipo.trim() && !tiposProyectoDisponibles.includes(nuevoProyecto.tipo.trim())) {
+      setTiposProyectoDisponibles(prev => [...prev, nuevoProyecto.tipo.trim()]);
+    }
+    if (nuevoProyecto.direccion.trim() && !direccionesDisponibles.includes(nuevoProyecto.direccion.trim())) {
+      setDireccionesDisponibles(prev => [...prev, nuevoProyecto.direccion.trim()]);
+    }
+    const entregablesIniciales = tiposNuevoProyecto.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: "", fecha: "", completado: false }));
+    setProyectos([{ id: Date.now(), ...nuevoProyecto, avanceManual: 0, entregables: entregablesIniciales }, ...proyectos]);
+    setNuevoProyecto({ nombre: "", tipo: "Transversal", direccion: "", encargado: "", fechaConvocatoria: "", fechaLevantamiento: "", fechaEntrega: "" });
+    setMostrarFormProyecto(false);
+    setModoEncargadoManual(false);
+    setModoDireccionManual(false);
+    setModoTipoProyectoManual(false);
+    setTiposNuevoProyecto([]);
+  }
+  function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
+  function avanceProyecto(p) { return p.entregables.length ? Math.round((p.entregables.filter(e => e.completado).length / p.entregables.length) * 100) : p.avanceManual; }
+  const [entregableForm, setEntregableForm] = useState({});
+  function agregarEntregable(proyectoId) {
+    const f = entregableForm[proyectoId];
+    if (!f || !f.responsable || !f.tipos || f.tipos.length === 0) return;
+    const nuevos = f.tipos.map((tipo, i) => ({ id: Date.now() + i, tipo, responsable: f.responsable, fecha: f.fecha || "", completado: false }));
+    setProyectos(proyectos.map(p => p.id === proyectoId ? { ...p, entregables: [...p.entregables, ...nuevos] } : p));
+    setEntregableForm({ ...entregableForm, [proyectoId]: { tipos: [], responsable: "", fecha: "" } });
+  }
+  function alternarTipoEntregableSeleccionado(proyectoId, tipo) {
+    setEntregableForm(prev => {
+      const actual = prev[proyectoId] || { tipos: [], responsable: "", fecha: "" };
+      const tipos = actual.tipos.includes(tipo) ? actual.tipos.filter(t => t !== tipo) : [...actual.tipos, tipo];
+      return { ...prev, [proyectoId]: { ...actual, tipos } };
+    });
+  }
+  function alternarEntregable(proyectoId, entregableId) {
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, completado: !e.completado } : e) }));
+  }
+  function cambiarResponsableEntregable(proyectoId, entregableId, nuevoResponsable) {
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.map(e => e.id === entregableId ? { ...e, responsable: nuevoResponsable } : e) }));
+  }
+  function eliminarEntregable(proyectoId, entregableId) {
+    setProyectos(proyectos.map(p => p.id !== proyectoId ? p : { ...p, entregables: p.entregables.filter(e => e.id !== entregableId) }));
+  }
+
+  const [linkNuevo, setLinkNuevo] = useState("");
+  const [tipoNuevaCuenta, setTipoNuevaCuenta] = useState("Atacante");
+  function agregarCuenta() {
+    if (!linkNuevo.trim()) return;
+    const plataforma = detectarPlataforma(linkNuevo);
+    const handleGenerado = "@" + (linkNuevo.split("/").filter(Boolean).pop() || "cuenta_nueva").slice(0, 20);
+    const idNueva = Date.now();
+    let url = linkNuevo.trim();
+    if (!/^https?:\/\//i.test(url)) url = "https://" + url;
+    setCuentas([{ id: idNueva, tipo: tipoNuevaCuenta, plataforma, handle: handleGenerado, link: url, estado: "En vivo", registros: [] }, ...cuentas]);
+    setLinkNuevo("");
+  }
+  function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
+  function agregarRegistroCuenta(cuentaId, calificacion, nota) {
+    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), fechaISO: reloj.toISOString(), calificacion, nota, registradoPor: nombreVisible };
+    setCuentas(prev => prev.map(c => c.id === cuentaId ? { ...c, registros: [...(c.registros || []), nuevo] } : c));
+  }
+  function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
+  const [nuevoWeb, setNuevoWeb] = useState({ tipo: "Palabra clave Google", texto: "" });
+  function agregarWeb() {
+    if (!nuevoWeb.texto.trim()) return;
+    const idNueva = Date.now();
+    setWeb([{ id: idNueva, tipo: nuevoWeb.tipo, texto: nuevoWeb.texto, resultados: 0, revisado: "analizando…" }, ...web]);
+    setNuevoWeb({ tipo: "Palabra clave Google", texto: "" });
+    setTimeout(() => setWeb(prev => prev.map(w => w.id === idNueva ? { ...w, resultados: Math.round(Math.random() * 8), revisado: "hace instantes" } : w)), 1600);
+  }
+  function eliminarWeb(id) { setWeb(web.filter(w => w.id !== id)); }
+
+  const [mostrarFormPersona, setMostrarFormPersona] = useState(false);
+  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
+  function agregarPersona() {
+    if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
+    setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol), ausencias: [] }]);
+    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
+    setMostrarFormPersona(false);
+  }
+  function eliminarPersona(id) { setPersonas(personas.filter(p => p.id !== id)); }
+
+  const [nuevoRolTexto, setNuevoRolTexto] = useState("");
+  function agregarRolNuevo() {
+    const v = nuevoRolTexto.trim();
+    if (!v || rolesDisponibles.includes(v)) return;
+    setRolesDisponibles([...rolesDisponibles, v]);
+    setNuevaPersona({ ...nuevaPersona, rol: v });
+    setNuevoRolTexto("");
+  }
+  const [nuevaModalidadTexto, setNuevaModalidadTexto] = useState("");
+  function agregarModalidadNueva() {
+    const v = nuevaModalidadTexto.trim();
+    if (!v || modalidadesDisponibles.includes(v)) return;
+    setModalidadesDisponibles([...modalidadesDisponibles, v]);
+    setNuevaPersona({ ...nuevaPersona, modalidad: v });
+    setNuevaModalidadTexto("");
+  }
+  const [nuevaUnidadTexto, setNuevaUnidadTexto] = useState("");
+  function agregarUnidadNueva() {
+    const v = nuevaUnidadTexto.trim();
+    if (!v || unidadesDisponibles.includes(v)) return;
+    setUnidadesDisponibles([...unidadesDisponibles, v]);
+    setUnidadActual(v);
+    setNuevaUnidadTexto("");
+  }
+  function eliminarUnidad(nombre) {
+    if (UNIDADES_SEED.includes(nombre)) return;
+    setUnidadesDisponibles(prev => prev.filter(u => u !== nombre));
+    if (unidadActual === nombre) setUnidadActual(UNIDADES_SEED[0]);
+  }
+  function eliminarRol(nombre) {
+    if (ROLES_SEED.includes(nombre)) return;
+    setRolesDisponibles(prev => prev.filter(r => r !== nombre));
+  }
+  function eliminarModalidad(nombre) {
+    if (MODALIDADES_SEED.includes(nombre)) return;
+    setModalidadesDisponibles(prev => prev.filter(m => m !== nombre));
+  }
+  function eliminarDireccionCatalogo(nombre) {
+    if (DIRECCIONES_SEED.includes(nombre)) return;
+    setDireccionesDisponibles(prev => prev.filter(d => d !== nombre));
+  }
+  function eliminarTipoProyectoCatalogo(nombre) {
+    if (TIPOS_PROYECTO_SEED.includes(nombre)) return;
+    setTiposProyectoDisponibles(prev => prev.filter(t => t !== nombre));
+  }
+  function eliminarTipoEntregableCatalogo(nombre) {
+    if (TIPOS_ENTREGABLE.includes(nombre)) return;
+    setTiposEntregableDisponibles(prev => prev.filter(t => t !== nombre));
+  }
+  const [nuevoTipoProyectoTexto, setNuevoTipoProyectoTexto] = useState("");
+  function agregarTipoProyectoNuevo() {
+    const v = nuevoTipoProyectoTexto.trim();
+    if (!v || tiposProyectoDisponibles.includes(v)) return;
+    setTiposProyectoDisponibles([...tiposProyectoDisponibles, v]);
+    setNuevoProyecto(prev => ({ ...prev, tipo: v }));
+    setNuevoTipoProyectoTexto("");
+  }
+  const [nuevaDireccionTexto, setNuevaDireccionTexto] = useState("");
+  function agregarDireccionNueva() {
+    const v = nuevaDireccionTexto.trim();
+    if (!v || direccionesDisponibles.includes(v)) return;
+    setDireccionesDisponibles([...direccionesDisponibles, v]);
+    setNuevoProyecto(prev => ({ ...prev, direccion: v }));
+    setNuevaDireccionTexto("");
+  }
+  const [nuevoTipoEntregableTexto, setNuevoTipoEntregableTexto] = useState("");
+  function agregarTipoEntregableNuevo() {
+    const v = nuevoTipoEntregableTexto.trim();
+    if (!v || tiposEntregableDisponibles.includes(v)) return;
+    setTiposEntregableDisponibles([...tiposEntregableDisponibles, v]);
+    setNuevoTipoEntregableTexto("");
+  }
+
+  const [fichaAbierta, setFichaAbierta] = useState(null);
+  const [formHorario, setFormHorario] = useState({});
+  const [formTareaFrec, setFormTareaFrec] = useState({});
+
+  function subirFoto(personaId, file) {
+    if (!file) return;
+    const lector = new FileReader();
+    lector.onload = () => setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, foto: lector.result } : p));
+    lector.readAsDataURL(file);
+  }
+  function agregarHorarioPersona(personaId) {
+    const f = formHorario[personaId] || { dia: "Lunes", horaInicio: "08:00", horaFin: "16:00" };
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, horario: [...(p.horario || []), { id: Date.now(), ...f }] } : p));
+  }
+  function eliminarHorarioPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, horario: p.horario.filter(h => h.id !== itemId) }));
+  }
+  function agregarTareaFrecPersona(personaId) {
+    const f = formTareaFrec[personaId];
+    if (!f || !f.tarea || !f.tarea.trim()) return;
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, tareasFrecuentes: [...(p.tareasFrecuentes || []), { id: Date.now(), dia: f.dia || "Lunes", tarea: f.tarea }] } : p));
+    setFormTareaFrec({ ...formTareaFrec, [personaId]: { dia: "Lunes", tarea: "" } });
+  }
+  function eliminarTareaFrecPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, tareasFrecuentes: p.tareasFrecuentes.filter(t => t.id !== itemId) }));
+  }
+
+  const [formAusencia, setFormAusencia] = useState({});
+  function agregarAusenciaPersona(personaId) {
+    const f = formAusencia[personaId];
+    if (!f || !f.fechaInicio) return;
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, ausencias: [...(p.ausencias || []), { id: Date.now(), tipo: f.tipo || TIPOS_AUSENCIA[0], fechaInicio: f.fechaInicio, fechaFin: f.fechaFin || f.fechaInicio, motivo: f.motivo || "" }] } : p));
+    setFormAusencia({ ...formAusencia, [personaId]: { tipo: TIPOS_AUSENCIA[0], fechaInicio: "", fechaFin: "", motivo: "" } });
+  }
+  function eliminarAusenciaPersona(personaId, itemId) {
+    setPersonas(prev => prev.map(p => p.id !== personaId ? p : { ...p, ausencias: (p.ausencias || []).filter(a => a.id !== itemId) }));
+  }
+
+  function descargarPlantillaExcel() {
+    const filas = [
+      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación" },
+    ];
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, "Personas");
+    XLSX.writeFile(libro, "plantilla-eco-radar-personas.xlsx");
+  }
+  function manejarSubidaExcel(evento) {
+    const archivo = evento.target.files[0];
+    if (!archivo) return;
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const datos = new Uint8Array(e.target.result);
+      const libro = XLSX.read(datos, { type: "array" });
+      const hoja = libro.Sheets[libro.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json(hoja);
+      const nuevas = filas.filter(f => f.Nombre && f.Codigo).map((f, i) => ({
+        id: Date.now() + i,
+        nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
+        rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
+        modalidad: String(f.Modalidad || modalidadesDisponibles[0]), jefeDirecto: f.JefeDirecto ? String(f.JefeDirecto) : "",
+        unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [], ausencias: [],
+      }));
+      if (nuevas.length) {
+        setPersonas(prev => [...prev, ...nuevas]);
+        setRolesDisponibles(prevR => { const extra = nuevas.map(n => n.rol).filter(r => !prevR.includes(r)); return extra.length ? [...prevR, ...extra] : prevR; });
+        setModalidadesDisponibles(prevM => { const extra = nuevas.map(n => n.modalidad).filter(m => !prevM.includes(m)); return extra.length ? [...prevM, ...extra] : prevM; });
+      }
+    };
+    lector.readAsArrayBuffer(archivo);
+    evento.target.value = "";
+  }
+
+  const personasUnidad = useMemo(() => personas.filter(p => (p.unidad || UNIDADES_SEED[0]) === unidadActual), [personas, unidadActual]);
+  function construirArbol(lista) {
+    const raices = lista.filter(p => !p.jefeDirecto || !lista.some(o => o.nombre === p.jefeDirecto));
+    function hijosDe(nombre) { return lista.filter(p => p.jefeDirecto === nombre); }
+    return { raices, hijosDe };
+  }
+  const arbolOrganigrama = useMemo(() => construirArbol(personasUnidad), [personasUnidad]);
+
+
+  const diasDelMes = useMemo(() => {
+    const year = 2026, month = 7;
+    const primerDia = new Date(year, month, 1);
+    const ultimoDia = new Date(year, month + 1, 0);
+    const inicioOffset = (primerDia.getDay() + 6) % 7;
+    const celdas = [];
+    for (let i = 0; i < inicioOffset; i++) celdas.push(null);
+    for (let d = 1; d <= ultimoDia.getDate(); d++) celdas.push(new Date(year, month, d));
+    return celdas;
+  }, []);
+  const [diaSeleccionado, setDiaSeleccionado] = useState(claveFecha(new Date(2026, 7, 31)));
+  const [nuevoEvento, setNuevoEvento] = useState({ h: "", t: "" });
+  function agregarEvento() {
+    if (!nuevoEvento.t.trim()) return;
+    setEventos(prev => ({ ...prev, [diaSeleccionado]: [...(prev[diaSeleccionado] || []), { h: nuevoEvento.h || "—", t: nuevoEvento.t }] }));
+    setNuevoEvento({ h: "", t: "" });
+  }
+
+  function generarPdfCierre() {
+    const doc = new jsPDF();
+    const fecha = reloj.toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+    let y = 18;
+    doc.setFontSize(16); doc.text("Eco Radar — Cierre del día", 14, y); y += 8;
+    doc.setFontSize(10); doc.text("Comunicación GAD Manta · " + fecha, 14, y); y += 10;
+    doc.setFontSize(12); doc.text("Tareas de hoy", 14, y); y += 6;
+    doc.setFontSize(9);
+    tareas.forEach(t => { doc.text(`- [${t.estado}] ${t.tarea} (${t.responsable})`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
+    if (tareas.length === 0) { doc.text("Sin tareas registradas hoy.", 14, y); y += 5; }
+    y += 6; doc.setFontSize(12); doc.text("Metas diarias y semanales", 14, y); y += 6; doc.setFontSize(9);
+    metas.forEach(m => { doc.text(`- ${m.persona}: ${m.entregable} — hoy ${m.avanceHoy}/${m.metaHoy}, semana ${m.avanceSemana}/${m.metaSemana} (${cumplimiento(m)}%)`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
+    if (metas.length === 0) { doc.text("Sin metas registradas.", 14, y); y += 5; }
+    y += 6; doc.setFontSize(12); doc.text("Avance de proyectos de la semana", 14, y); y += 6; doc.setFontSize(9);
+    proyectos.forEach(p => { doc.text(`- ${p.nombre} (${p.tipo}) — ${avanceProyecto(p)}% — semáforo: ${semaforoProyecto({ ...p, avance: avanceProyecto(p) })}`, 14, y); y += 5; if (y > 275) { doc.addPage(); y = 18; } });
+    if (proyectos.length === 0) { doc.text("Sin proyectos registrados.", 14, y); y += 5; }
+    doc.save(`cierre-eco-radar-${claveFecha(reloj)}.pdf`);
+  }
+
+  const distribucionCarga = useMemo(() => {
+    const porPersona = {};
+    metas.forEach(m => { porPersona[m.persona] = (porPersona[m.persona] || 0) + m.metaSemana; });
+    const total = Object.values(porPersona).reduce((a, b) => a + b, 0);
+    return Object.entries(porPersona).map(([persona, valor], i) => ({ persona, valor, pct: total > 0 ? Math.round((valor / total) * 100) : 0, color: `hsl(${(i * 67) % 360}, 55%, 50%)` }));
+  }, [metas]);
+
+  const DIAS_SEMANA = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+
+  if (vistaTV && enWorkspace) {
+    return <><EstilosGlobales /><ModoTV personas={personas} tareas={tareas} metas={metas} onSalir={() => setVistaTV(false)} /></>;
+  }
+
+  return (
+    <div className="app">
+      <EstilosGlobales />
 
       {/* -------- flujo de acceso -------- */}
       {!sesion && paso === "selector" && (
