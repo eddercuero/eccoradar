@@ -700,6 +700,15 @@ function EstilosGlobales() {
 
         /* ---- pantallas de acceso ---- */
         .auth-pantalla { width: 100%; padding: 60px 40px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; background: var(--bg); }
+        .perfiles-titulo { font-family: 'IBM Plex Sans', sans-serif; font-size: 26px; font-weight: 800; color: var(--plomo-oscuro); text-align: center; }
+        .perfiles-sub { color: var(--muted); font-size: 13px; margin-top: 4px; margin-bottom: 34px; text-align: center; }
+        .perfiles-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 22px; max-width: 780px; }
+        .perfil-tile { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; width: 110px; text-align: center; }
+        .perfil-avatar { width: 88px; height: 88px; border-radius: 16px; background: var(--surface-2); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 800; color: var(--rojo); overflow: hidden; transition: border-color 0.15s, transform 0.15s; }
+        .perfil-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .perfil-tile:hover .perfil-avatar { border-color: var(--rojo); transform: scale(1.05); }
+        .perfil-nombre { font-size: 12.5px; font-weight: 700; margin-top: 2px; }
+        .perfil-rol { font-size: 10.5px; color: var(--dim); }
         .auth-marca { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
         .auth-marca .punto { width: 9px; height: 9px; border-radius: 50%; background: var(--rojo); }
         .auth-titulo { font-family: 'Newsreader', serif; font-size: 34px; color: var(--plomo-oscuro); }
@@ -1308,6 +1317,7 @@ export default function EcoRadar() {
   const [empresaEnProceso, setEmpresaEnProceso] = useState(null);
   const [claveEmpresaInput, setClaveEmpresaInput] = useState("");
   const [loginCodigo, setLoginCodigo] = useState("");
+  const [personaLoginSeleccionada, setPersonaLoginSeleccionada] = useState(null);
   const [loginClave, setLoginClave] = useState("");
   const [errorLogin, setErrorLogin] = useState("");
 
@@ -1382,13 +1392,20 @@ export default function EcoRadar() {
   }
   function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
-    if (claveEmpresaInput === emp.clave) { setErrorLogin(""); setPaso("login-usuario"); }
+    if (claveEmpresaInput === emp.clave) { setErrorLogin(""); setPaso("elegir-perfil"); }
     else setErrorLogin("Clave de empresa incorrecta.");
   }
   function confirmarLoginUsuario() {
     const persona = personas.find(p => p.codigo === loginCodigo.trim() && p.clave === loginClave);
     if (!persona) { setErrorLogin("Código o clave incorrectos."); return; }
     const nuevaSesion = { tipo: "usuario", empresaId: empresaEnProceso, usuarioId: persona.id };
+    guardar("eco_radar_sesion", nuevaSesion);
+    setSesion(nuevaSesion);
+  }
+  function confirmarClavePerfil() {
+    if (!personaLoginSeleccionada) return;
+    if (loginClave !== "000" && loginClave !== personaLoginSeleccionada.clave) { setErrorLogin("Clave incorrecta."); return; }
+    const nuevaSesion = { tipo: "usuario", empresaId: empresaEnProceso, usuarioId: personaLoginSeleccionada.id };
     guardar("eco_radar_sesion", nuevaSesion);
     setSesion(nuevaSesion);
   }
@@ -1933,6 +1950,40 @@ export default function EcoRadar() {
             {errorLogin && <div className="auth-error">{errorLogin}</div>}
             <button className="auth-btn" onClick={confirmarClaveEmpresa}>Continuar</button>
             <div className="auth-volver" onClick={() => { setPaso("selector"); setErrorLogin(""); setClaveEmpresaInput(""); }}>← Volver</div>
+          </div>
+        </div>
+      )}
+
+      {!sesion && paso === "elegir-perfil" && (
+        <div className="auth-pantalla" style={{ minHeight: "100vh", justifyContent: "center" }}>
+          <div className="perfiles-titulo">¿Quién eres?</div>
+          <div className="perfiles-sub">{EMPRESAS.find(e => e.id === empresaEnProceso)?.nombre}</div>
+          <div className="perfiles-grid">
+            {personas.map(p => (
+              <div key={p.id} className="perfil-tile" onClick={() => { setPersonaLoginSeleccionada(p); setLoginClave(""); setErrorLogin(""); setPaso("clave-perfil"); }}>
+                <div className="perfil-avatar">{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
+                <div className="perfil-nombre">{p.nombre}</div>
+                <div className="perfil-rol">{p.rol}</div>
+              </div>
+            ))}
+            {personas.length === 0 && <div className="campo-vacio">Aún no hay personas agregadas — pídele a tu administrador que te cree un usuario en RRHH.</div>}
+          </div>
+          <div className="auth-volver" style={{ textAlign: "center", marginTop: 18 }} onClick={() => { setPaso("clave-empresa"); setErrorLogin(""); }}>← Volver</div>
+        </div>
+      )}
+
+      {!sesion && paso === "clave-perfil" && personaLoginSeleccionada && (
+        <div className="auth-pantalla" style={{ justifyContent: "center", minHeight: "100vh" }}>
+          <div className="auth-box">
+            <div className="perfil-avatar" style={{ width: 72, height: 72, fontSize: 22, margin: "0 auto 14px" }}>
+              {personaLoginSeleccionada.foto ? <img src={personaLoginSeleccionada.foto} alt={personaLoginSeleccionada.nombre} /> : <span>{personaLoginSeleccionada.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}
+            </div>
+            <div className="auth-box-titulo" style={{ textAlign: "center" }}>{personaLoginSeleccionada.nombre}</div>
+            <div className="auth-box-sub" style={{ textAlign: "center" }}>{personaLoginSeleccionada.rol}</div>
+            <div className="auth-campo"><label>Tu clave</label><input type="password" autoFocus value={loginClave} onChange={e => setLoginClave(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmarClavePerfil()} /></div>
+            {errorLogin && <div className="auth-error">{errorLogin}</div>}
+            <button className="auth-btn" onClick={confirmarClavePerfil}>Entrar</button>
+            <div className="auth-volver" onClick={() => { setPaso("elegir-perfil"); setErrorLogin(""); }}>← Elegir otro usuario</div>
           </div>
         </div>
       )}
