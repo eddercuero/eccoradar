@@ -17,13 +17,18 @@ import * as XLSX from "xlsx";
 
 /* ---------- empresas ---------- */
 
+const CIUDADES = [
+  { id: "manta", nombre: "Manta", activa: true },
+  { id: "ventanas", nombre: "Ventanas", activa: false },
+  { id: "santana", nombre: "Santana", activa: false },
+];
 const EMPRESAS = [
-  { id: "nitidomkt", nombre: "NitidoMKT", tipo: "Agencia de marketing", activa: false },
-  { id: "promoexito", nombre: "PromoÉxito", tipo: "Agencia de marketing", activa: false },
-  { id: "gad_santana", nombre: "GAD Santana", tipo: "Gobierno autónomo descentralizado", activa: false },
-  { id: "ventanas", nombre: "Ventanas", tipo: "Municipio", activa: false },
-  { id: "107_mejor_ciudad", nombre: "107 Mejor Ciudad", tipo: "Programa institucional", activa: false },
-  { id: "comunicacion_gad", nombre: "Comunicación GAD Manta", tipo: "Dirección de comunicación", activa: true, clave: "gadmanta2026" },
+  { id: "nitidomkt", nombre: "NitidoMKT", tipo: "Agencia de marketing", activa: false, ciudad: "manta" },
+  { id: "promoexito", nombre: "PromoÉxito", tipo: "Agencia de marketing", activa: false, ciudad: "manta" },
+  { id: "gad_santana", nombre: "GAD Santana", tipo: "Gobierno autónomo descentralizado", activa: false, ciudad: "santana" },
+  { id: "ventanas", nombre: "Ventanas", tipo: "Municipio", activa: false, ciudad: "ventanas" },
+  { id: "107_mejor_ciudad", nombre: "107 Mejor Ciudad", tipo: "Programa institucional", activa: false, ciudad: "manta" },
+  { id: "comunicacion_gad", nombre: "Comunicación GAD Manta", tipo: "Dirección de comunicación", activa: true, clave: "gadmanta2026", ciudad: "manta" },
 ];
 
 const CLAVE_ASESOR = "asesor2026";
@@ -1313,7 +1318,8 @@ function EstilosGlobales() {
 
 export default function EcoRadar() {
   const [sesion, setSesion] = useState(() => cargar("eco_radar_sesion", null));
-  const [paso, setPaso] = useState("selector");
+  const [paso, setPaso] = useState("ciudad");
+  const [ciudadElegida, setCiudadElegida] = useState(null);
   const [empresaEnProceso, setEmpresaEnProceso] = useState(null);
   const [claveEmpresaInput, setClaveEmpresaInput] = useState("");
   const [loginCodigo, setLoginCodigo] = useState("");
@@ -1409,6 +1415,16 @@ export default function EcoRadar() {
     guardar("eco_radar_sesion", nuevaSesion);
     setSesion(nuevaSesion);
   }
+  function elegirPerfilLogin(persona) {
+    const necesitaClave = persona.rol === ROL_DIRECTORA || persona.codigo === "directora";
+    if (necesitaClave) {
+      setPersonaLoginSeleccionada(persona); setLoginClave(""); setErrorLogin(""); setPaso("clave-perfil");
+    } else {
+      const nuevaSesion = { tipo: "usuario", empresaId: empresaEnProceso, usuarioId: persona.id };
+      guardar("eco_radar_sesion", nuevaSesion);
+      setSesion(nuevaSesion);
+    }
+  }
   function confirmarClaveAsesor() {
     if (claveEmpresaInput === CLAVE_ASESOR) {
       const nuevaSesion = { tipo: "asesor" };
@@ -1418,9 +1434,9 @@ export default function EcoRadar() {
   }
   function cerrarSesion() {
     localStorage.removeItem("eco_radar_sesion");
-    setSesion(null); setPaso("selector"); setEmpresaEnProceso(null);
+    setSesion(null); setPaso("ciudad"); setEmpresaEnProceso(null); setCiudadElegida(null);
     setClaveEmpresaInput(""); setLoginCodigo(""); setLoginClave(""); setErrorLogin("");
-    setEmpresaAsesorViendo(null); setModulo("resumen");
+    setEmpresaAsesorViendo(null); setModulo("inicio"); setPersonaLoginSeleccionada(null);
   }
 
   const usuarioActual = sesion?.tipo === "usuario" ? personas.find(p => p.id === sesion.usuarioId) : null;
@@ -1913,12 +1929,28 @@ export default function EcoRadar() {
       <EstilosGlobales />
 
       {/* -------- flujo de acceso -------- */}
+      {!sesion && paso === "ciudad" && (
+        <div className="auth-pantalla">
+          <div className="auth-marca"><span className="punto" /><div className="auth-titulo">EECO RADAR</div></div>
+          <div className="auth-sub">¿En qué ciudad vas a trabajar hoy?</div>
+          <div className="auth-grid">
+            {CIUDADES.map(c => (
+              <button key={c.id} className={"auth-card" + (!c.activa ? " bloqueada" : "")} onClick={() => { if (c.activa) { setCiudadElegida(c.id); setPaso("selector"); } }}>
+                <div className="icono">{c.activa ? <Building2 /> : <Lock />}</div>
+                <div className="nombre">{c.nombre}</div>
+                {!c.activa && <div style={{ marginTop: 8 }}><span className="badge-proximamente">Próximamente</span></div>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {!sesion && paso === "selector" && (
         <div className="auth-pantalla">
           <div className="auth-marca"><span className="punto" /><div className="auth-titulo">EECO RADAR</div></div>
-          <div className="auth-sub">Elige la empresa que vas a gestionar. Cada equipo entra con su propio código y contraseña.</div>
+          <div className="auth-sub">Elige la empresa que vas a gestionar en {CIUDADES.find(c => c.id === ciudadElegida)?.nombre}. Cada equipo entra con su propio código y contraseña.</div>
           <div className="auth-grid">
-            {EMPRESAS.map(e => (
+            {EMPRESAS.filter(e => e.ciudad === ciudadElegida).map(e => (
               <button key={e.id} className={"auth-card" + (!e.activa ? " bloqueada" : "")} onClick={() => iniciarSesionEmpresa(e.id)}>
                 <div className="icono">{e.activa ? <Building2 /> : <Lock />}</div>
                 <div className="nombre">{e.nombre}</div>
@@ -1934,6 +1966,7 @@ export default function EcoRadar() {
             </div>
             <Eye style={{ width: 20, height: 20, color: "var(--rojo)" }} />
           </div>
+          <div className="auth-volver" onClick={() => { setPaso("ciudad"); setCiudadElegida(null); }}>← Cambiar de ciudad</div>
         </div>
       )}
 
@@ -1957,10 +1990,10 @@ export default function EcoRadar() {
       {!sesion && paso === "elegir-perfil" && (
         <div className="auth-pantalla" style={{ minHeight: "100vh", justifyContent: "center" }}>
           <div className="perfiles-titulo">¿Quién eres?</div>
-          <div className="perfiles-sub">{EMPRESAS.find(e => e.id === empresaEnProceso)?.nombre}</div>
+          <div className="perfiles-sub">{EMPRESAS.find(e => e.id === empresaEnProceso)?.nombre} · toca tu tarjeta para entrar (el Director/a de Comunicación necesita clave)</div>
           <div className="perfiles-grid">
             {personas.map(p => (
-              <div key={p.id} className="perfil-tile" onClick={() => { setPersonaLoginSeleccionada(p); setLoginClave(""); setErrorLogin(""); setPaso("clave-perfil"); }}>
+              <div key={p.id} className="perfil-tile" onClick={() => elegirPerfilLogin(p)}>
                 <div className="perfil-avatar">{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
                 <div className="perfil-nombre">{p.nombre}</div>
                 <div className="perfil-rol">{p.rol}</div>
