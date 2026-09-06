@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge, Menu, MoreHorizontal
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge, Menu, MoreHorizontal, Home
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -76,6 +76,7 @@ const TAREAS_SUGERIDAS = {
 };
 
 const NAV = [
+  { id: "inicio", label: "Inicio", icon: Home },
   { id: "mando", label: "Centro de Control", icon: Gauge },
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "contenido", label: "Contenido", icon: Megaphone },
@@ -87,7 +88,7 @@ const NAV = [
   { id: "calendario", label: "Calendario", icon: CalendarDays },
   { id: "roles", label: "RRHH", icon: UserCog },
 ];
-const NAV_MOVIL_PRINCIPAL = ["mando", "contenido", "equipo", "metas"];
+const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "metas"];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
 const CATEGORIAS_ROLES = {
@@ -198,9 +199,9 @@ function inicioDeSemana(fecha) {
 }
 
 function accesoPorRol(rol, forzarAdmin) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
-  if (rol === "Encargado") return ["mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
-  return ["mando", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["inicio", "mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
+  if (rol === "Encargado") return ["inicio", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
+  return ["inicio", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
 }
 
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
@@ -296,7 +297,8 @@ const COLOR_AUSENCIA = { "Vacaciones": "morado", "Permiso médico": "amarillo", 
 function estadoDeHoy(persona, hoyISO) {
   const ausencias = persona.ausencias || [];
   const activa = ausencias.find(a => a.fechaInicio <= hoyISO && hoyISO <= (a.fechaFin || a.fechaInicio));
-  if (activa) return { texto: activa.tipo, color: COLOR_AUSENCIA[activa.tipo] || "gris" };
+  if (activa) return { texto: activa.tipo, color: "rojo" };
+  if (persona.modalidadTrabajo === "Teletrabajo") return { texto: "Trabajando", color: "amarillo" };
   return { texto: "Trabajando", color: "verde" };
 }
 const DIAS_SEMANA_H = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
@@ -1162,6 +1164,19 @@ function EstilosGlobales() {
           .auth-grid { grid-template-columns: 1fr; }
         }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+
+        .inicio-saludo { font-family: 'IBM Plex Sans', sans-serif; font-size: 20px; font-weight: 800; margin-bottom: 18px; }
+        .inicio-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 14px; margin-bottom: 20px; }
+        .inicio-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 22px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; cursor: pointer; text-align: center; box-shadow: 0 1px 3px rgba(20,22,25,0.04); }
+        .inicio-tile:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+        .inicio-tile-icono { width: 44px; height: 44px; border-radius: 12px; background: var(--rojo-soft); display: flex; align-items: center; justify-content: center; color: var(--rojo); }
+        .inicio-tile-icono svg { width: 20px; height: 20px; }
+        .inicio-tile-label { font-size: 12.5px; font-weight: 700; }
+        .inicio-mando-tile { display: flex; align-items: center; gap: 14px; padding: 18px 20px; background: var(--plomo-oscuro); border-radius: 14px; cursor: pointer; color: #fff; }
+        .inicio-mando-icono { width: 42px; height: 42px; border-radius: 12px; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .inicio-mando-icono svg { width: 20px; height: 20px; color: #fff; }
+        .inicio-mando-titulo { font-size: 14.5px; font-weight: 800; }
+        .inicio-mando-sub { font-size: 11.5px; color: rgba(255,255,255,0.6); margin-top: 2px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
         .estado-punto-morado { background: #8B5CF6; }
@@ -1350,7 +1365,7 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_web", web), [web]);
   useEffect(() => guardar("eco_gad_eventos", eventos), [eventos]);
 
-  const [modulo, setModulo] = useState("resumen");
+  const [modulo, setModulo] = useState("inicio");
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const [reloj, setReloj] = useState(new Date());
   const [vistaTV, setVistaTV] = useState(false);
@@ -2051,6 +2066,30 @@ export default function EcoRadar() {
               </div>
               <div className="reloj"><Clock />{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })} · {reloj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
             </div>
+
+            {modulo === "inicio" && (
+              <>
+                <div className="inicio-saludo">Hola, {nombreVisible} 👋</div>
+                <div className="inicio-grid">
+                  {itemsAccesibles.filter(n => n.id !== "inicio" && n.id !== "mando").map(item => (
+                    <div key={item.id} className="inicio-tile" onClick={() => setModulo(item.id)}>
+                      <div className="inicio-tile-icono"><item.icon /></div>
+                      <div className="inicio-tile-label">{item.label}</div>
+                    </div>
+                  ))}
+                </div>
+                {esAdmin && (
+                  <div className="inicio-mando-tile" onClick={() => setModulo("mando")}>
+                    <div className="inicio-mando-icono"><Gauge /></div>
+                    <div style={{ flex: 1 }}>
+                      <div className="inicio-mando-titulo">Centro de Control</div>
+                      <div className="inicio-mando-sub">Dashboard general con todo el pulso de la comunicación — solo administradores</div>
+                    </div>
+                    <ChevronRight style={{ color: "#fff", opacity: 0.7 }} />
+                  </div>
+                )}
+              </>
+            )}
 
             {modulo === "mando" && (() => {
               const hoyNombre = diaDeHoyNombre(reloj);
