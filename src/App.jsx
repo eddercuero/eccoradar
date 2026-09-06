@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge, Menu, MoreHorizontal
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -76,7 +76,7 @@ const TAREAS_SUGERIDAS = {
 };
 
 const NAV = [
-  { id: "mando", label: "Centro de Mando", icon: Gauge },
+  { id: "mando", label: "Centro de Control", icon: Gauge },
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
   { id: "contenido", label: "Contenido", icon: Megaphone },
   { id: "equipo", label: "Equipo y tareas", icon: Users },
@@ -87,6 +87,7 @@ const NAV = [
   { id: "calendario", label: "Calendario", icon: CalendarDays },
   { id: "roles", label: "RRHH", icon: UserCog },
 ];
+const NAV_MOVIL_PRINCIPAL = ["mando", "contenido", "equipo", "metas"];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
 const CATEGORIAS_ROLES = {
@@ -1106,6 +1107,60 @@ function EstilosGlobales() {
         .score100-total.amarillo { color: var(--warning); }
         .score100-total.verde { color: var(--success); }
         .score100-excelencia { color: #D4AF37; margin-left: 2px; }
+
+        /* ---- responsivo / estilo app en celular (barra inferior tipo app) ---- */
+        .topbar-movil { display: none; }
+        .bottom-nav-movil { display: none; }
+        .hoja-mas { display: none; }
+        .hoja-overlay { display: none; }
+
+        @media (max-width: 860px) {
+          .app { flex-direction: column; }
+          .sidebar { display: none; }
+          .topbar-movil { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface); position: sticky; top: 0; z-index: 20; }
+          .topbar-movil .marca-texto { flex: 1; }
+          .main { padding: 16px 14px 84px; width: 100%; }
+
+          .bottom-nav-movil { display: flex; position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); z-index: 40; box-shadow: 0 -2px 10px rgba(0,0,0,0.06); }
+          .bottom-nav-item { flex: 1; background: transparent; border: none; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 9px 2px 8px; font-size: 9.5px; font-weight: 600; color: var(--muted); cursor: pointer; font-family: inherit; }
+          .bottom-nav-item svg { width: 18px; height: 18px; }
+          .bottom-nav-item.activo { color: var(--rojo); }
+
+          .hoja-overlay { display: block; position: fixed; inset: 0; background: rgba(20,22,25,0.45); z-index: 55; }
+          .hoja-mas { display: block; position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface); border-radius: 18px 18px 0 0; z-index: 65; padding: 10px 18px 24px; max-height: 75vh; overflow-y: auto; transform: translateY(100%); transition: transform 0.25s ease; box-shadow: 0 -6px 20px rgba(0,0,0,0.15); }
+          .hoja-mas.abierta { transform: translateY(0); }
+          .hoja-mas-manija { width: 40px; height: 4px; border-radius: 4px; background: var(--border); margin: 4px auto 14px; }
+
+          .topbar { flex-direction: column; align-items: flex-start; gap: 6px; }
+          .titulo-modulo { font-size: 20px; }
+          .kpis { grid-template-columns: repeat(2, 1fr); }
+          .grid-dos { grid-template-columns: 1fr; }
+          .proyectos-layout { grid-template-columns: 1fr; }
+          .proyectos-lista { flex-direction: row; overflow-x: auto; gap: 8px; padding-bottom: 6px; }
+          .proyecto-mini { min-width: 200px; flex-shrink: 0; }
+          .form-grid { grid-template-columns: 1fr; }
+          .ficha-detalle { grid-template-columns: 1fr; }
+          .ficha-detalle-dos-cols { grid-template-columns: 1fr; }
+          .mando-personas-grid, .mando-unidades-grid, .equipo-hoy-grid { grid-template-columns: repeat(2, 1fr); }
+          .proyecto-detalle-grid { grid-template-columns: 1fr 1fr; }
+          table.tabla { display: block; overflow-x: auto; white-space: nowrap; }
+          .form-inline { flex-direction: column; align-items: stretch; }
+          .form-inline input, .form-inline select { width: 100%; min-width: 0; }
+          .score100-nombre { width: 100px; font-size: 11px; }
+          .score100-total { width: 40px; font-size: 15px; }
+          .reloj-cuenta-numeros { justify-content: space-between; }
+          .cal-grid { gap: 2px; }
+        }
+        @media (max-width: 480px) {
+          .kpis { grid-template-columns: 1fr 1fr; }
+          .mando-personas-grid, .mando-unidades-grid, .equipo-hoy-grid { grid-template-columns: 1fr; }
+          .proyecto-detalle-grid { grid-template-columns: 1fr; }
+          .selector-entregables .chips { gap: 5px; }
+          .auth-grid { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 380px) {
+          .auth-grid { grid-template-columns: 1fr; }
+        }
         .estado-punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
@@ -1296,6 +1351,7 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_eventos", eventos), [eventos]);
 
   const [modulo, setModulo] = useState("resumen");
+  const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const [reloj, setReloj] = useState(new Date());
   const [vistaTV, setVistaTV] = useState(false);
   const [empresaAsesorViendo, setEmpresaAsesorViendo] = useState(null);
@@ -1920,17 +1976,24 @@ export default function EcoRadar() {
         </div>
       )}
 
-      {enWorkspace && (
+      {enWorkspace && (() => {
+        const itemsAccesibles = NAV.filter(n => accesoPermitido.includes(n.id));
+        const itemsPrincipalesMovil = itemsAccesibles.filter(n => NAV_MOVIL_PRINCIPAL.includes(n.id));
+        const itemsMasMovil = itemsAccesibles.filter(n => !NAV_MOVIL_PRINCIPAL.includes(n.id));
+        return (
         <>
           <aside className="sidebar">
-            <div className="marca"><div className="marca-badge">ER</div><div><div className="marca-texto">ECO RADAR</div><div className="marca-sub">Comunicación integral</div></div></div>
+            <div className="marca">
+              <div className="marca-badge">ER</div>
+              <div><div className="marca-texto">ECO RADAR</div><div className="marca-sub">Comunicación integral</div></div>
+            </div>
             <div className="empresa-actual">
               <div className="nombre">Comunicación GAD Manta</div>
               <div className="usuario">{nombreVisible} · {rolActual}</div>
               <div className="cerrar" onClick={cerrarSesion}><LogOut /> Cerrar sesión</div>
             </div>
             <nav className="navlist">
-              {NAV.filter(n => accesoPermitido.includes(n.id)).map(item => (
+              {itemsAccesibles.map(item => (
                 <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => setModulo(item.id)}>
                   <item.icon />{item.label}
                 </div>
@@ -1943,7 +2006,44 @@ export default function EcoRadar() {
             )}
           </aside>
 
+          {menuMovilAbierto && <div className="hoja-overlay" onClick={() => setMenuMovilAbierto(false)} />}
+          <div className={"hoja-mas" + (menuMovilAbierto ? " abierta" : "")}>
+            <div className="hoja-mas-manija" onClick={() => setMenuMovilAbierto(false)} />
+            <div className="empresa-actual" style={{ marginBottom: 12 }}>
+              <div className="nombre">{nombreVisible}</div>
+              <div className="usuario">{rolActual} · Comunicación GAD Manta</div>
+            </div>
+            <nav className="navlist">
+              {itemsMasMovil.map(item => (
+                <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => { setModulo(item.id); setMenuMovilAbierto(false); }}>
+                  <item.icon />{item.label}
+                </div>
+              ))}
+              {esAdmin && <div className="navitem" onClick={() => { setVistaTV(true); setMenuMovilAbierto(false); }}><Tv />Modo TV</div>}
+              <div className="navitem" onClick={cerrarSesion} style={{ color: "var(--rojo)" }}><LogOut />Cerrar sesión</div>
+            </nav>
+          </div>
+
+          <nav className="bottom-nav-movil">
+            {itemsPrincipalesMovil.map(item => (
+              <button key={item.id} className={"bottom-nav-item" + (modulo === item.id ? " activo" : "")} onClick={() => setModulo(item.id)}>
+                <item.icon />
+                <span>{item.label.split(" ")[0]}</span>
+              </button>
+            ))}
+            {itemsMasMovil.length > 0 && (
+              <button className={"bottom-nav-item" + (menuMovilAbierto ? " activo" : "")} onClick={() => setMenuMovilAbierto(true)}>
+                <MoreHorizontal />
+                <span>Más</span>
+              </button>
+            )}
+          </nav>
+
           <main className="main">
+            <div className="topbar-movil">
+              <div className="marca-badge" style={{ width: 28, height: 28, fontSize: 10 }}>ER</div>
+              <div className="marca-texto" style={{ fontSize: 15 }}>ECO RADAR</div>
+            </div>
             <div className="topbar">
               <div>
                 <h1 className="titulo-modulo">{NAV.find(n => n.id === modulo)?.label}</h1>
@@ -1975,7 +2075,7 @@ export default function EcoRadar() {
                 <>
                   <div className="centro-mando">
                     <div className="centro-mando-cab">
-                      <div><div className="centro-mando-titulo">Centro de Mando · Comunicación GAD Manta</div><div className="centro-mando-fecha">{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div></div>
+                      <div><div className="centro-mando-titulo">Centro de Control · Comunicación GAD Manta</div><div className="centro-mando-fecha">{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div></div>
                       <div className="centro-mando-avance">{pctGeneral}% cumplido hoy</div>
                     </div>
                     <div className="barra-fondo" style={{ height: 8, marginBottom: 18 }}><div className="barra-relleno" style={{ width: pctGeneral + "%", background: pctGeneral >= 80 ? "var(--success)" : pctGeneral >= 50 ? "var(--warning)" : "var(--rojo)" }} /></div>
@@ -3176,7 +3276,8 @@ export default function EcoRadar() {
             )}
           </main>
         </>
-      )}
+        );
+      })()}
 
       {unidadReportando && (
         <ModalReporteUnidad
