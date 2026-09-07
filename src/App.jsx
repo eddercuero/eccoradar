@@ -1431,6 +1431,10 @@ export default function EcoRadar() {
   const [nuevoMensajeBanco, setNuevoMensajeBanco] = useState({ categoria: CATEGORIAS_BANCO[0], texto: "" });
   const [temaConstructor, setTemaConstructor] = useState("");
   const [variantesConstructor, setVariantesConstructor] = useState(null);
+  const [briefCargando, setBriefCargando] = useState(false);
+  const [briefError, setBriefError] = useState("");
+  const [constructorCargando, setConstructorCargando] = useState(false);
+  const [constructorError, setConstructorError] = useState("");
   const [loginClave, setLoginClave] = useState("");
   const [errorLogin, setErrorLogin] = useState("");
 
@@ -1897,6 +1901,40 @@ export default function EcoRadar() {
   }
   function eliminarMensajeBanco(id) { setBancoMensajes(bancoMensajes.filter(m => m.id !== id)); }
   function copiarTexto(texto) { navigator.clipboard?.writeText(texto).catch(() => {}); }
+
+  async function generarBriefConIA() {
+    setBriefError(""); setBriefCargando(true); setBriefGenerado("");
+    const prompt = `Eres redactor de comunicación institucional de un GAD municipal ecuatoriano. Escribe un brief profesional y listo para usar, para el área de ${brief.canal}, con esta información:\nTema: ${brief.tema}\nObjetivo: ${brief.objetivo}\nPúblico objetivo: ${brief.publico}\nMensaje clave: ${brief.mensaje}\nFecha: ${brief.fecha || "sin definir"}\n\nEntrégalo organizado, claro y en español, listo para que el equipo lo ejecute directamente.`;
+    try {
+      const r = await fetch("/api/generar-texto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, maxTokens: 700 }) });
+      const datos = await r.json();
+      if (!r.ok) throw new Error(datos.error || "La IA no pudo generar el brief.");
+      setBriefGenerado(datos.texto);
+    } catch (e) {
+      setBriefError(e.message || "No se pudo conectar con la IA.");
+    } finally {
+      setBriefCargando(false);
+    }
+  }
+
+  async function generarVariantesConIA() {
+    setConstructorError(""); setConstructorCargando(true); setVariantesConstructor(null);
+    const formatos = ["Discurso", "Boletín de prensa", "Post", "Reel", "WhatsApp", "Entrevista", "Vocería", "Comunicado", "Respuesta ante críticas"];
+    const prompt = `Eres redactor de comunicación institucional de un GAD municipal ecuatoriano. A partir de este tema: "${temaConstructor}", escribe un mensaje breve, natural y listo para usar en cada uno de estos formatos: ${formatos.join(", ")}. Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni marcado de código, con exactamente esta forma: {"Discurso": "...", "Boletín de prensa": "...", "Post": "...", "Reel": "...", "WhatsApp": "...", "Entrevista": "...", "Vocería": "...", "Comunicado": "...", "Respuesta ante críticas": "..."}`;
+    try {
+      const r = await fetch("/api/generar-texto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, maxTokens: 1800 }) });
+      const datos = await r.json();
+      if (!r.ok) throw new Error(datos.error || "La IA no pudo generar los mensajes.");
+      let json;
+      try { json = JSON.parse(datos.texto.replace(/```json|```/g, "").trim()); }
+      catch { throw new Error("La IA respondió en un formato inesperado — intenta de nuevo."); }
+      setVariantesConstructor(json);
+    } catch (e) {
+      setConstructorError(e.message || "No se pudo conectar con la IA.");
+    } finally {
+      setConstructorCargando(false);
+    }
+  }
   function actualizarHorarioDia(personaId, dia, campo, valor) {
     setPersonas(prev => prev.map(p => {
       if (p.id !== personaId) return p;
@@ -3533,14 +3571,18 @@ export default function EcoRadar() {
                       <div className="campo-form"><label>Fecha</label><input type="date" value={brief.fecha} onChange={e => setBrief({ ...brief, fecha: e.target.value })} /></div>
                       <div className="campo-form"><label>Canal</label><select value={brief.canal} onChange={e => setBrief({ ...brief, canal: e.target.value })}>{CANALES_BRIEF.map(c => <option key={c}>{c}</option>)}</select></div>
                     </div>
-                    <button className="btn btn-primario btn-sm" style={{ marginTop: 14 }} onClick={() => setBriefGenerado(generarBrief(brief))} disabled={!brief.tema.trim()}><Sparkles style={{ width: 13, height: 13 }} /> Generar brief</button>
+                    <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                      <button className="btn btn-primario btn-sm" onClick={generarBriefConIA} disabled={!brief.tema.trim() || briefCargando}><Sparkles style={{ width: 13, height: 13 }} /> {briefCargando ? "Generando…" : "Generar brief con IA"}</button>
+                      <button className="btn btn-sm" onClick={() => { setBriefError(""); setBriefGenerado(generarBrief(brief)); }} disabled={!brief.tema.trim() || briefCargando}>Usar plantilla sin IA</button>
+                    </div>
+                    {briefError && <div className="auth-error" style={{ marginTop: 10 }}>⚠ {briefError} — puedes usar "Plantilla sin IA" mientras tanto.</div>}
                     {briefGenerado && (
                       <div className="herramienta-resultado">
                         <pre>{briefGenerado}</pre>
                         <button className="btn btn-sm" onClick={() => copiarTexto(briefGenerado)}><Copy style={{ width: 12, height: 12 }} /> Copiar</button>
                       </div>
                     )}
-                    <div className="aviso-simulado" style={{ marginTop: 12 }}>Esto arma la estructura del brief automáticamente con lo que escribas — no reemplaza el criterio del equipo, es un punto de partida rápido.</div>
+                    <div className="aviso-simulado" style={{ marginTop: 12 }}>Con IA, el texto lo redacta de verdad Claude según lo que escribas. Sin IA, arma una plantilla fija — útil si la IA no está configurada todavía.</div>
                   </div>
                 )}
 
@@ -3579,9 +3621,11 @@ export default function EcoRadar() {
                     <div className="panel-titulo panel-titulo-app">Constructor de Mensajes</div>
                     <div className="form-inline">
                       <input type="text" placeholder="Escribe el tema (ej. Cierre de la vía Manta-Rocafuerte)" value={temaConstructor} onChange={e => setTemaConstructor(e.target.value)} />
-                      <button className="btn btn-primario btn-sm" onClick={() => setVariantesConstructor(generarVariantesConstructor(temaConstructor))} disabled={!temaConstructor.trim()}><Sparkles style={{ width: 13, height: 13 }} /> Generar versiones</button>
+                      <button className="btn btn-primario btn-sm" onClick={generarVariantesConIA} disabled={!temaConstructor.trim() || constructorCargando}><Sparkles style={{ width: 13, height: 13 }} /> {constructorCargando ? "Generando…" : "Generar con IA"}</button>
+                      <button className="btn btn-sm" onClick={() => { setConstructorError(""); setVariantesConstructor(generarVariantesConstructor(temaConstructor)); }} disabled={!temaConstructor.trim() || constructorCargando}>Plantilla sin IA</button>
                     </div>
-                    <div className="aviso-simulado" style={{ marginTop: -8, marginBottom: 16 }}>Esto arma la estructura de cada formato con plantillas — no es una inteligencia artificial escribiendo texto creativo nuevo, es un punto de partida para que el equipo lo termine de redactar.</div>
+                    {constructorError && <div className="auth-error" style={{ marginTop: -8, marginBottom: 12 }}>⚠ {constructorError} — puedes usar "Plantilla sin IA" mientras tanto.</div>}
+                    <div className="aviso-simulado" style={{ marginTop: -8, marginBottom: 16 }}>Con IA, cada versión la redacta de verdad Claude a partir del tema. Sin IA, arma una plantilla fija con espacios para completar.</div>
                     {variantesConstructor && Object.entries(variantesConstructor).map(([formato, texto]) => (
                       <div key={formato} className="herramienta-variante">
                         <div className="herramienta-variante-titulo">{formato} <Copy style={{ width: 12, height: 12, cursor: "pointer" }} onClick={() => copiarTexto(texto)} /></div>
