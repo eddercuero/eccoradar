@@ -27,9 +27,17 @@ const EMPRESAS = [
   { id: "promoexito", nombre: "PromoÉxito", tipo: "Agencia de marketing", activa: false, ciudad: "manta" },
   { id: "gad_santana", nombre: "GAD Santana", tipo: "Gobierno autónomo descentralizado", activa: false, ciudad: "santana" },
   { id: "ventanas", nombre: "Ventanas", tipo: "Municipio", activa: false, ciudad: "ventanas" },
-  { id: "107_mejor_ciudad", nombre: "107 Mejor Ciudad", tipo: "Programa institucional", activa: false, ciudad: "manta" },
+  { id: "107_mejor_ciudad", nombre: "107 Mejor Ciudad", tipo: "Programa institucional", activa: true, clave: "mejorciudad2026", ciudad: "manta" },
   { id: "comunicacion_gad", nombre: "Comunicación GAD Manta", tipo: "Dirección de comunicación", activa: true, clave: "gadmanta2026", ciudad: "manta" },
+  { id: "cuerpo_bomberos", nombre: "Cuerpo de Bomberos", tipo: "Institución de socorro", activa: true, clave: "bomberos2026", ciudad: "manta" },
+  { id: "epam", nombre: "EPAM (Aguas de Manta)", tipo: "Empresa pública de agua potable", activa: true, clave: "epam2026", ciudad: "manta" },
 ];
+const EMPRESA_UNIDAD_DEFAULT = {
+  comunicacion_gad: "Dircom (Dirección de Comunicación GAD)",
+  cuerpo_bomberos: "Cuerpo de Bomberos",
+  epam: "Aguas de Manta",
+  "107_mejor_ciudad": "107 Mejor Ciudad",
+};
 
 const CLAVE_ASESOR = "asesor2026";
 
@@ -1398,7 +1406,12 @@ export default function EcoRadar() {
   }
   function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
-    if (claveEmpresaInput === emp.clave) { setErrorLogin(""); setPaso("elegir-perfil"); }
+    if (claveEmpresaInput === emp.clave) {
+      setErrorLogin("");
+      const unidadDeEmpresa = EMPRESA_UNIDAD_DEFAULT[empresaEnProceso];
+      if (unidadDeEmpresa) setUnidadActual(unidadDeEmpresa);
+      setPaso("elegir-perfil");
+    }
     else setErrorLogin("Clave de empresa incorrecta.");
   }
   function confirmarLoginUsuario() {
@@ -1987,23 +2000,27 @@ export default function EcoRadar() {
         </div>
       )}
 
-      {!sesion && paso === "elegir-perfil" && (
+      {!sesion && paso === "elegir-perfil" && (() => {
+        const unidadDeEsteLogin = EMPRESA_UNIDAD_DEFAULT[empresaEnProceso] || "Dircom (Dirección de Comunicación GAD)";
+        const personasDeEsteLogin = personas.filter(p => (p.unidad || "Dircom (Dirección de Comunicación GAD)") === unidadDeEsteLogin);
+        return (
         <div className="auth-pantalla" style={{ minHeight: "100vh", justifyContent: "center" }}>
           <div className="perfiles-titulo">¿Quién eres?</div>
           <div className="perfiles-sub">{EMPRESAS.find(e => e.id === empresaEnProceso)?.nombre} · toca tu tarjeta para entrar (el Director/a de Comunicación necesita clave)</div>
           <div className="perfiles-grid">
-            {personas.map(p => (
+            {personasDeEsteLogin.map(p => (
               <div key={p.id} className="perfil-tile" onClick={() => elegirPerfilLogin(p)}>
                 <div className="perfil-avatar">{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
                 <div className="perfil-nombre">{p.nombre}</div>
                 <div className="perfil-rol">{p.rol}</div>
               </div>
             ))}
-            {personas.length === 0 && <div className="campo-vacio">Aún no hay personas agregadas — pídele a tu administrador que te cree un usuario en RRHH.</div>}
+            {personasDeEsteLogin.length === 0 && <div className="campo-vacio">Aún no hay personas agregadas a {EMPRESAS.find(e => e.id === empresaEnProceso)?.nombre} — pídele al Director/a de Comunicación que te cree un usuario en RRHH.</div>}
           </div>
           <div className="auth-volver" style={{ textAlign: "center", marginTop: 18 }} onClick={() => { setPaso("clave-empresa"); setErrorLogin(""); }}>← Volver</div>
         </div>
-      )}
+        );
+      })()}
 
       {!sesion && paso === "clave-perfil" && personaLoginSeleccionada && (
         <div className="auth-pantalla" style={{ justifyContent: "center", minHeight: "100vh" }}>
