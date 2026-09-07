@@ -6,7 +6,7 @@ import {
   Target, Search, Building2, Eye, ArrowLeft, Youtube, Linkedin,
   X as IconCerrar, Heart, MessageCircle, Share2, Repeat2, Play,
   Lock, LogOut, FolderKanban, FileDown, Tv, KeyRound,
-  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge, Menu, MoreHorizontal, Home
+  UserCog, Download, Upload, Camera, Repeat, CalendarClock, CopyCheck, Megaphone, Gauge, Menu, MoreHorizontal, Home, LayoutGrid, Wrench, Pencil, Sparkles, Copy
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -92,16 +92,17 @@ const NAV = [
   { id: "inicio", label: "Inicio", icon: Home },
   { id: "mando", label: "Centro de Control", icon: Gauge },
   { id: "resumen", label: "Resumen", icon: LayoutDashboard },
-  { id: "contenido", label: "Contenido", icon: Megaphone },
-  { id: "equipo", label: "Equipo y tareas", icon: Users },
+  { id: "contenido", label: "Plan de contenido", icon: Megaphone },
+  { id: "equipo", label: "Parrilla", icon: LayoutGrid },
   { id: "metas", label: "Metas y objetivos", icon: Target },
   { id: "proyectos", label: "Proyectos", icon: FolderKanban },
-  { id: "ranking", label: "Ranking", icon: Trophy },
+  { id: "ranking", label: "Dashboard", icon: Trophy },
   { id: "redes", label: "Monitoreo de redes", icon: Radio },
   { id: "calendario", label: "Calendario", icon: CalendarDays },
   { id: "roles", label: "RRHH", icon: UserCog },
+  { id: "herramientas", label: "Herramientas", icon: Wrench },
 ];
-const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "metas"];
+const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "proyectos"];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
 const CATEGORIAS_ROLES = {
@@ -212,9 +213,9 @@ function inicioDeSemana(fecha) {
 }
 
 function accesoPorRol(rol, forzarAdmin) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["inicio", "mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles"];
-  if (rol === "Encargado") return ["inicio", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"];
-  return ["inicio", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario"]; // miembro regular
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["inicio", "mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles", "herramientas"];
+  if (rol === "Encargado") return ["inicio", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas"];
+  return ["inicio", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas"]; // miembro regular
 }
 
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
@@ -307,6 +308,32 @@ function guardar(clave, valor) {
 }
 const TIPOS_AUSENCIA = ["Vacaciones", "Permiso médico", "Permiso personal", "Permiso institucional", "Día libre"];
 const COLOR_AUSENCIA = { "Vacaciones": "morado", "Permiso médico": "amarillo", "Permiso personal": "amarillo", "Permiso institucional": "amarillo", "Día libre": "gris" };
+const CATEGORIAS_BANCO = ["Frase oficial", "Concepto central", "Dato o cifra", "Respuesta autorizada", "Narrativa institucional", "Slogan"];
+const CANALES_BRIEF = ["Diseño", "Video", "Prensa", "Redes", "Producción"];
+function generarBrief(b) {
+  const comun = `Tema: ${b.tema}\nObjetivo: ${b.objetivo}\nPúblico objetivo: ${b.publico}\nMensaje clave: ${b.mensaje}\nFecha: ${b.fecha}\n\n`;
+  const plantillas = {
+    "Diseño": comun + "Indicaciones para diseño: crear una pieza gráfica que comunique el mensaje clave con claridad, alineada a la identidad institucional. Considerar al público objetivo al elegir tono visual, colores y tipografía.",
+    "Video": comun + "Indicaciones para video: producir una pieza audiovisual que desarrolle el mensaje clave en un guion breve. Definir locaciones, entrevistados o recursos visuales antes de grabar.",
+    "Prensa": comun + "Indicaciones para prensa: redactar boletín/comunicado desarrollando el mensaje clave con datos de respaldo. Confirmar vocero autorizado y verificar cifras antes de enviar a medios.",
+    "Redes": comun + "Indicaciones para redes: adaptar el mensaje clave a un copy corto y directo. Sugerir formato (post, reel, historia) según el público objetivo y el canal de mayor alcance.",
+    "Producción": comun + "Indicaciones para producción: coordinar los recursos (equipo, locación, logística) necesarios para materializar el mensaje clave en el formato solicitado.",
+  };
+  return "BRIEF DE " + b.canal.toUpperCase() + "\n\n" + (plantillas[b.canal] || plantillas["Diseño"]);
+}
+function generarVariantesConstructor(tema) {
+  return {
+    "Discurso": `Estimados presentes,\n\nHoy quiero hablarles sobre ${tema}. Este es un tema que nos convoca porque afecta directamente a nuestra comunidad, y como institución tenemos el compromiso de actuar con transparencia y decisión.\n\n[Desarrollar aquí los puntos clave, cifras de respaldo y compromiso concreto]\n\nMuchas gracias.`,
+    "Boletín de prensa": `COMUNICADO DE PRENSA\n\n${String(tema).toUpperCase()}\n\n[Ciudad], [fecha] — [Institución] informa sobre ${tema}. [Desarrollar el qué, quién, cuándo, dónde y por qué].\n\n[Cita de la autoridad o vocero autorizado]\n\nPara más información: [contacto de prensa]`,
+    "Post": `📢 ${tema}\n\n[Mensaje breve y directo, máximo 3 líneas]\n\n#GADManta #ComunicaciónInstitucional`,
+    "Reel": `GUION REEL — ${tema}\n\n[Toma 1] Hook (0-3s): pregunta o dato llamativo sobre ${tema}\n[Toma 2] Desarrollo (4-15s): explicar el mensaje central\n[Toma 3] Cierre (16-20s): llamado a la acción`,
+    "WhatsApp": `Hola 👋 Te compartimos información importante sobre ${tema}.\n\n[Mensaje breve, claro, con datos de contacto si aplica]\n\nCualquier duda, escríbenos.`,
+    "Entrevista": `PUNTOS CLAVE PARA ENTREVISTA — ${tema}\n\n1. ¿Qué está pasando con ${tema}?\n2. ¿Por qué es importante para la ciudadanía?\n3. ¿Qué está haciendo la institución al respecto?\n4. ¿Qué sigue?`,
+    "Vocería": `MENSAJE DE VOCERÍA — ${tema}\n\nMensaje principal: [frase que resuma la postura institucional sobre ${tema}]\n\nMensajes de apoyo:\n- [dato 1]\n- [dato 2]\n\nQué NO decir: [temas sensibles a evitar]`,
+    "Comunicado": `COMUNICADO OFICIAL\n\nSobre: ${tema}\n\n[Institución] se pronuncia sobre ${tema} para informar lo siguiente:\n\n[Desarrollar los puntos oficiales]\n\nReiteramos nuestro compromiso con la transparencia.`,
+    "Respuesta ante críticas": `RESPUESTA ANTE CRÍTICAS — ${tema}\n\nAgradecemos los comentarios de la ciudadanía sobre ${tema}. Queremos aclarar lo siguiente:\n\n[Presentar hechos y datos verificables, sin tono defensivo]\n\nSeguimos abiertos al diálogo.`,
+  };
+}
 function estadoDeHoy(persona, hoyISO) {
   const ausencias = persona.ausencias || [];
   const activa = ausencias.find(a => a.fechaInicio <= hoyISO && hoyISO <= (a.fechaFin || a.fechaInicio));
@@ -631,6 +658,49 @@ function ModalReporteUnidad({ unidad, responsable, reportesHoy, onClose, onValid
               )}
             </>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ModalMiPerfil({ persona, onClose, onGuardar }) {
+  const [nombre, setNombre] = useState(persona.nombre);
+  const [correo, setCorreo] = useState(persona.correo || "");
+  const [claveNueva, setClaveNueva] = useState("");
+  const [guardado, setGuardado] = useState(false);
+
+  function guardarCambiosPerfil() {
+    const cambios = { nombre: nombre.trim() || persona.nombre, correo: correo.trim() };
+    if (claveNueva.trim()) cambios.clave = claveNueva.trim();
+    onGuardar(persona.id, cambios);
+    setGuardado(true);
+    setClaveNueva("");
+    setTimeout(() => setGuardado(false), 2000);
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-feed" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+        <div className="modal-feed-header">
+          <div className="modal-feed-header-info"><div className="modal-feed-avatar"><Pencil /></div><div><div className="modal-feed-nombre">Mi perfil</div><div className="modal-feed-sub">Actualiza tu nombre real, correo y clave</div></div></div>
+          <IconCerrar className="modal-feed-cerrar" onClick={onClose} />
+        </div>
+        <div className="modal-feed-body" style={{ padding: 18 }}>
+          <div className="campo-form" style={{ marginBottom: 12 }}>
+            <label>Nombre completo</label>
+            <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej. María Zambrano" />
+          </div>
+          <div className="campo-form" style={{ marginBottom: 12 }}>
+            <label>Correo electrónico</label>
+            <input type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="tucorreo@ejemplo.com" />
+          </div>
+          <div className="campo-form">
+            <label>Nueva clave <span className="campo-form-ayuda">déjalo vacío si no la quieres cambiar</span></label>
+            <input type="password" value={claveNueva} onChange={e => setClaveNueva(e.target.value)} placeholder="••••••" />
+          </div>
+          <button className="btn btn-primario" style={{ marginTop: 14, width: "100%", justifyContent: "center" }} onClick={guardarCambiosPerfil}>Guardar cambios</button>
+          {guardado && <div className="aviso-simulado" style={{ textAlign: "center", marginTop: 8, color: "var(--success)" }}>✓ Perfil actualizado</div>}
         </div>
       </div>
     </div>
@@ -1199,6 +1269,27 @@ function EstilosGlobales() {
         .inicio-mando-icono svg { width: 20px; height: 20px; color: #fff; }
         .inicio-mando-titulo { font-size: 14.5px; font-weight: 800; }
         .inicio-mando-sub { font-size: 11.5px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+
+        .parrilla-scroll { overflow-x: auto; }
+        .parrilla-tabla { border-collapse: collapse; width: 100%; min-width: 760px; }
+        .parrilla-tabla th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); padding: 0 8px 10px; font-weight: 700; }
+        .parrilla-th-persona { min-width: 160px; }
+        .parrilla-dia-hoy { color: var(--rojo) !important; }
+        .parrilla-td-persona { display: flex; align-items: center; gap: 8px; padding: 10px 8px; border-top: 1px solid var(--border); white-space: nowrap; }
+        .parrilla-persona-nombre { font-size: 12px; font-weight: 700; }
+        .parrilla-persona-rol { font-size: 10px; color: var(--dim); }
+        .parrilla-celda { border-top: 1px solid var(--border); border-left: 1px solid var(--border); padding: 8px; vertical-align: top; min-width: 110px; }
+        .parrilla-celda-hoy { background: var(--rojo-soft); }
+        .parrilla-celda .tarea-dia-chip { display: flex; margin-bottom: 4px; }
+        .parrilla-agregar { display: flex; gap: 3px; margin-top: 4px; }
+        .parrilla-agregar input { width: 100%; font-size: 10px; padding: 3px 5px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); font-family: inherit; }
+        .parrilla-agregar button { flex-shrink: 0; width: 20px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .herramienta-resultado { margin-top: 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+        .herramienta-resultado pre { white-space: pre-wrap; font-family: inherit; font-size: 12.5px; line-height: 1.5; margin: 0 0 10px; }
+        .herramienta-variante { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; }
+        .herramienta-variante-titulo { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--rojo); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .herramienta-variante pre { white-space: pre-wrap; font-family: inherit; font-size: 12px; line-height: 1.5; margin: 0; color: var(--muted); }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
         .estado-punto-morado { background: #8B5CF6; }
@@ -1332,6 +1423,14 @@ export default function EcoRadar() {
   const [claveEmpresaInput, setClaveEmpresaInput] = useState("");
   const [loginCodigo, setLoginCodigo] = useState("");
   const [personaLoginSeleccionada, setPersonaLoginSeleccionada] = useState(null);
+  const [mostrarMiPerfil, setMostrarMiPerfil] = useState(false);
+  const [herramientaActiva, setHerramientaActiva] = useState("briefs");
+  const [brief, setBrief] = useState({ tema: "", objetivo: "", publico: "", mensaje: "", fecha: "", canal: CANALES_BRIEF[0] });
+  const [briefGenerado, setBriefGenerado] = useState("");
+  const [bancoMensajes, setBancoMensajes] = useState(() => cargar("eco_gad_banco_mensajes", []));
+  const [nuevoMensajeBanco, setNuevoMensajeBanco] = useState({ categoria: CATEGORIAS_BANCO[0], texto: "" });
+  const [temaConstructor, setTemaConstructor] = useState("");
+  const [variantesConstructor, setVariantesConstructor] = useState(null);
   const [loginClave, setLoginClave] = useState("");
   const [errorLogin, setErrorLogin] = useState("");
 
@@ -1375,6 +1474,7 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_responsables_unidad", responsablesUnidad), [responsablesUnidad]);
   useEffect(() => guardar("eco_gad_reportes_diarios", reportesDiarios), [reportesDiarios]);
   useEffect(() => guardar("eco_gad_solicitudes_apoyo", solicitudesApoyo), [solicitudesApoyo]);
+  useEffect(() => guardar("eco_gad_banco_mensajes", bancoMensajes), [bancoMensajes]);
   useEffect(() => guardar("eco_gad_contenido_plan", contenidoPlan), [contenidoPlan]);
   useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
   useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
@@ -1787,6 +1887,16 @@ export default function EcoRadar() {
     lector.onload = () => setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, foto: lector.result } : p));
     lector.readAsDataURL(file);
   }
+  function actualizarMiPerfil(personaId, cambios) {
+    setPersonas(prev => prev.map(p => p.id === personaId ? { ...p, ...cambios } : p));
+  }
+  function agregarMensajeBanco() {
+    if (!nuevoMensajeBanco.texto.trim()) return;
+    setBancoMensajes([{ id: Date.now(), ...nuevoMensajeBanco }, ...bancoMensajes]);
+    setNuevoMensajeBanco({ categoria: nuevoMensajeBanco.categoria, texto: "" });
+  }
+  function eliminarMensajeBanco(id) { setBancoMensajes(bancoMensajes.filter(m => m.id !== id)); }
+  function copiarTexto(texto) { navigator.clipboard?.writeText(texto).catch(() => {}); }
   function actualizarHorarioDia(personaId, dia, campo, valor) {
     setPersonas(prev => prev.map(p => {
       if (p.id !== personaId) return p;
@@ -2106,7 +2216,10 @@ export default function EcoRadar() {
             <div className="empresa-actual">
               <div className="nombre">Comunicación GAD Manta</div>
               <div className="usuario">{nombreVisible} · {rolActual}</div>
-              <div className="cerrar" onClick={cerrarSesion}><LogOut /> Cerrar sesión</div>
+              <div style={{ display: "flex", gap: 12, marginTop: 6 }}>
+                {usuarioActual && <div className="cerrar" style={{ marginTop: 0 }} onClick={() => setMostrarMiPerfil(true)}><Pencil style={{ width: 11, height: 11 }} /> Mi perfil</div>}
+                <div className="cerrar" style={{ marginTop: 0 }} onClick={cerrarSesion}><LogOut /> Cerrar sesión</div>
+              </div>
             </div>
             <nav className="navlist">
               {itemsAccesibles.map(item => (
@@ -2168,17 +2281,29 @@ export default function EcoRadar() {
               <div className="reloj"><Clock />{reloj.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })} · {reloj.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
             </div>
 
-            {modulo === "inicio" && (
+            {modulo === "inicio" && (() => {
+              const idsInicioGrid = ["contenido", "equipo", "proyectos", "calendario", "roles", "herramientas"];
+              return (
               <>
                 <div className="inicio-saludo">Hola, {nombreVisible} 👋</div>
                 <div className="inicio-grid">
-                  {itemsAccesibles.filter(n => n.id !== "inicio" && n.id !== "mando").map(item => (
+                  {itemsAccesibles.filter(n => idsInicioGrid.includes(n.id)).map(item => (
                     <div key={item.id} className="inicio-tile" onClick={() => setModulo(item.id)}>
                       <div className="inicio-tile-icono"><item.icon /></div>
                       <div className="inicio-tile-label">{item.label}</div>
                     </div>
                   ))}
                 </div>
+                {accesoPermitido.includes("ranking") && (
+                  <div className="inicio-mando-tile" style={{ background: "var(--steel)", marginBottom: 12 }} onClick={() => setModulo("ranking")}>
+                    <div className="inicio-mando-icono"><Trophy /></div>
+                    <div style={{ flex: 1 }}>
+                      <div className="inicio-mando-titulo">Dashboard</div>
+                      <div className="inicio-mando-sub">Ranking de cumplimiento{esAdmin ? " y monitoreo de redes" : ""} — todos pueden entrar</div>
+                    </div>
+                    <ChevronRight style={{ color: "#fff", opacity: 0.7 }} />
+                  </div>
+                )}
                 {esAdmin && (
                   <div className="inicio-mando-tile" onClick={() => setModulo("mando")}>
                     <div className="inicio-mando-icono"><Gauge /></div>
@@ -2190,7 +2315,8 @@ export default function EcoRadar() {
                   </div>
                 )}
               </>
-            )}
+              );
+            })()}
 
             {modulo === "mando" && (() => {
               const hoyNombre = diaDeHoyNombre(reloj);
@@ -2511,97 +2637,62 @@ export default function EcoRadar() {
               );
             })()}
 
-            {modulo === "equipo" && (
+            {modulo === "equipo" && (() => {
+              const hoyNombreParrilla = diaDeHoyNombre(reloj);
+              return (
               <>
-                {esAdmin && (
-                  <div className="panel">
-                    <div className="panel-titulo">
-                      Turnos
-                      <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormTurno(!mostrarFormTurno)}><Plus /> Asignar turno</button>
-                    </div>
-                    {mostrarFormTurno && (
-                      <div className="form-inline">
-                        <select value={nuevoTurno.persona} onChange={e => setNuevoTurno({ ...nuevoTurno, persona: e.target.value })}>
-                          <option value="">Selecciona persona…</option>
-                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
-                        </select>
-                        <select value={nuevoTurno.dia} onChange={e => setNuevoTurno({ ...nuevoTurno, dia: e.target.value })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
-                        <input type="time" value={nuevoTurno.horaInicio} onChange={e => setNuevoTurno({ ...nuevoTurno, horaInicio: e.target.value })} />
-                        <input type="time" value={nuevoTurno.horaFin} onChange={e => setNuevoTurno({ ...nuevoTurno, horaFin: e.target.value })} />
-                        <button className="btn btn-primario btn-sm" onClick={agregarTurno}>Guardar</button>
-                      </div>
-                    )}
-                    <table className="tabla">
-                      <thead><tr><th>Persona</th><th>Día</th><th>Horario</th><th></th></tr></thead>
+                <div className="panel">
+                  <div className="panel-titulo panel-titulo-app">Parrilla semanal · quién hace qué, cada día</div>
+                  <div className="aviso-simulado" style={{ marginTop: -8, marginBottom: 14 }}>Como la parrilla de un canal de TV: cada fila es una persona, cada columna un día. Clic en un pendiente (🟡) para sumarle avance, se pone verde al completarse. {esAdmin ? "Puedes agregar objetivos con el + de cada casilla." : "Solo puedes agregar en tu propia fila."}</div>
+                  <div className="parrilla-scroll">
+                    <table className="parrilla-tabla">
+                      <thead>
+                        <tr>
+                          <th className="parrilla-th-persona">Persona</th>
+                          {DIAS_SEMANA_H.map(d => <th key={d} className={d === hoyNombreParrilla ? "parrilla-dia-hoy" : ""}>{d.slice(0, 3)}</th>)}
+                        </tr>
+                      </thead>
                       <tbody>
-                        {turnos.map(t => (
-                          <tr key={t.id}><td>{t.persona}</td><td>{t.dia}</td><td>{t.horaInicio} – {t.horaFin}</td><td><Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarTurno(t.id)} /></td></tr>
-                        ))}
-                        {turnos.length === 0 && <tr><td colSpan={4} className="campo-vacio">Sin turnos asignados todavía.</td></tr>}
+                        {personasEquipo.map(p => {
+                          const puedeEditarFila = esAdmin || p.nombre === nombreVisible;
+                          return (
+                            <tr key={p.id}>
+                              <td className="parrilla-td-persona">
+                                <div className="ficha-avatar" style={{ width: 26, height: 26, fontSize: 10 }}>{p.foto ? <img src={p.foto} alt={p.nombre} /> : <span>{p.nombre.split(" ").map(x => x[0]).slice(0, 2).join("")}</span>}</div>
+                                <div><div className="parrilla-persona-nombre">{p.nombre}</div><div className="parrilla-persona-rol">{p.rol}</div></div>
+                              </td>
+                              {DIAS_SEMANA_H.map(dia => {
+                                const tareasDia = (p.tareasFrecuentes || []).filter(t => t.dia === dia);
+                                const keyForm = p.id + "-" + dia;
+                                const formDia = formTareaFrecDia[keyForm] || { tarea: "", cantidad: 1 };
+                                return (
+                                  <td key={dia} className={"parrilla-celda" + (dia === hoyNombreParrilla ? " parrilla-celda-hoy" : "")}>
+                                    {tareasDia.map(t => (
+                                      <span key={t.id} className={"tarea-dia-chip" + (t.avance >= t.cantidad ? " completa" : "")} onClick={() => incrementarAvanceTareaFrec(p.id, t.id)} title="Clic para sumar avance">
+                                        {t.avance}/{t.cantidad} {t.tarea}
+                                        {puedeEditarFila && <IconCerrar style={{ width: 9, height: 9 }} onClick={e => { e.stopPropagation(); eliminarTareaFrecPersona(p.id, t.id); }} />}
+                                      </span>
+                                    ))}
+                                    {puedeEditarFila && (
+                                      <div className="parrilla-agregar">
+                                        <input type="text" placeholder="+ objetivo" value={formDia.tarea} onChange={e => setFormTareaFrecDia({ ...formTareaFrecDia, [keyForm]: { ...formDia, tarea: e.target.value } })} />
+                                        <button onClick={() => agregarTareaFrecDia(p.id, dia)}><Plus style={{ width: 10, height: 10 }} /></button>
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                        {personasEquipo.length === 0 && <tr><td colSpan={8} className="campo-vacio">Agrega personas en RRHH para verlas en la parrilla.</td></tr>}
                       </tbody>
                     </table>
                   </div>
-                )}
-                {!esAdmin && (
-                  <div className="panel">
-                    <div className="panel-titulo">Tus turnos</div>
-                    {turnosVisibles.map(t => (<div className="fila-persona" key={t.id}><div><div className="persona-nombre">{t.dia}</div><div className="persona-tarea">{t.horaInicio} – {t.horaFin}</div></div></div>))}
-                    {turnosVisibles.length === 0 && <div className="campo-vacio">Aún no tienes turnos asignados.</div>}
-                  </div>
-                )}
-
-                <div className="chips">
-                  <div className={"chip" + (filtroArea === "Todas" ? " activo" : "")} onClick={() => setFiltroArea("Todas")}>Todas las áreas</div>
-                  {AREAS.map(a => <div key={a} className={"chip" + (filtroArea === a ? " activo" : "")} onClick={() => setFiltroArea(a)}>{a}</div>)}
-                </div>
-
-                <div className="panel">
-                  <div className="panel-titulo">
-                    {esAdmin ? "Tareas del equipo" : "Tus tareas pendientes"}
-                    {esAdmin && <button className="btn btn-primario btn-sm" onClick={() => setMostrarFormTarea(!mostrarFormTarea)}><Plus /> Asignar tarea</button>}
-                  </div>
-                  {esAdmin && mostrarFormTarea && (
-                    <>
-                      <div className="chips">
-                        {(TAREAS_SUGERIDAS[nuevaTarea.area] || []).map(s => <div key={s} className="chip-sugerencia" onClick={() => setNuevaTarea({ ...nuevaTarea, tarea: s })}>{s}</div>)}
-                      </div>
-                      <div className="form-inline">
-                        <input type="text" placeholder="Descripción de la tarea (ej. 3 videos, 1 video para la cumbre de jóvenes)" value={nuevaTarea.tarea} onChange={e => setNuevaTarea({ ...nuevaTarea, tarea: e.target.value })} />
-                        <select value={nuevaTarea.responsable} onChange={e => setNuevaTarea({ ...nuevaTarea, responsable: e.target.value })}>
-                          <option value="">Responsable…</option>
-                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
-                        </select>
-                        <select value={nuevaTarea.area} onChange={e => setNuevaTarea({ ...nuevaTarea, area: e.target.value })}>{AREAS.map(a => <option key={a} value={a}>{a}</option>)}</select>
-                        <select value={nuevaTarea.prioridad} onChange={e => setNuevaTarea({ ...nuevaTarea, prioridad: e.target.value })}><option>Alta</option><option>Media</option><option>Baja</option></select>
-                        <select value={nuevaTarea.frecuencia} onChange={e => setNuevaTarea({ ...nuevaTarea, frecuencia: e.target.value })}><option>Específica</option><option>Frecuente</option></select>
-                        {nuevaTarea.frecuencia === "Frecuente" && (
-                          <select value={nuevaTarea.dia} onChange={e => setNuevaTarea({ ...nuevaTarea, dia: e.target.value })}>{DIAS_SEMANA.map(d => <option key={d}>{d}</option>)}</select>
-                        )}
-                        <button className="btn btn-primario btn-sm" onClick={agregarTarea}>Guardar</button>
-                      </div>
-                      <div className="aviso-simulado" style={{ marginTop: -10 }}>"Específica" es algo puntual de hoy (ej. 1 video para la cumbre de jóvenes). "Frecuente" se repite cada semana el día que elijas (ej. cada Lunes 3 videos).</div>
-                    </>
-                  )}
-                  <table className="tabla">
-                    <thead><tr><th></th><th>Tarea</th><th>Área</th><th>Frecuencia</th>{esAdmin && <th>Responsable</th>}<th>Estado</th>{esAdmin && <th></th>}</tr></thead>
-                    <tbody>
-                      {tareasVisibles.filter(t => filtroArea === "Todas" || t.area === filtroArea).map(t => (
-                        <tr key={t.id}>
-                          <td><span className={"semaforo-punto " + semaforoPrioridad(t.prioridad)} title={"Prioridad " + t.prioridad} /></td>
-                          <td>{t.tarea}</td>
-                          <td><span className="etiqueta etq-baja">{t.area}</span></td>
-                          <td>{t.frecuencia === "Frecuente" ? <span className="etiqueta etq-progreso"><Repeat style={{ width: 10, height: 10 }} /> Cada {t.dia}</span> : <span className="etiqueta etq-baja">Específica · hoy</span>}</td>
-                          {esAdmin && <td>{t.responsable}</td>}
-                          <td><span className={"etiqueta fila-clic " + (t.estado === "Completado" ? "etq-completado" : t.estado === "En progreso" ? "etq-progreso" : "etq-pendiente")} onClick={() => cambiarEstadoTarea(t.id)} title="Clic para cambiar de estado">{t.estado}</span></td>
-                          {esAdmin && <td><Trash2 style={{ width: 14, height: 14, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarTarea(t.id)} /></td>}
-                        </tr>
-                      ))}
-                      {tareasVisibles.filter(t => filtroArea === "Todas" || t.area === filtroArea).length === 0 && <tr><td colSpan={7} className="campo-vacio">No hay tareas aquí todavía.</td></tr>}
-                    </tbody>
-                  </table>
                 </div>
               </>
-            )}
+              );
+            })()}
 
             {modulo === "metas" && (
               <>
@@ -2932,6 +3023,14 @@ export default function EcoRadar() {
               const promedioGeneral = scores.length ? Math.round(scores.reduce((a, s) => a + s.score.total, 0) / scores.length) : 0;
               return (
                 <>
+                  {esAdmin && (
+                    <div className="kpis">
+                      <div className="kpi acento-exito"><div className="kpi-valor">{resumenRedesHoy.revisadas}/{resumenRedesHoy.total}</div><div className="kpi-label">Redes revisadas hoy</div></div>
+                      <div className="kpi acento-rojo"><div className="kpi-valor">{resumenRedesHoy.alertas}</div><div className="kpi-label">Alertas de redes hoy</div></div>
+                      <div className="kpi acento-acero"><div className="kpi-valor">{promedioGeneral}</div><div className="kpi-label">Score 100 promedio</div></div>
+                      <div className="kpi acento-plomo"><div className="kpi-valor">{rankingOrdenado.length}</div><div className="kpi-label">Metas activas en total</div></div>
+                    </div>
+                  )}
                   <div className="panel">
                     <div className="panel-titulo panel-titulo-app">Score 100 · cumplimiento, impacto, evidencias, tiempo, coordinación y planificación</div>
                     <div className="score100-promedio">
@@ -3414,10 +3513,93 @@ export default function EcoRadar() {
                 </div>
               </>
             )}
+
+            {modulo === "herramientas" && (
+              <>
+                <div className="chips">
+                  <div className={"chip" + (herramientaActiva === "briefs" ? " activo" : "")} onClick={() => setHerramientaActiva("briefs")}>📋 Generador de Briefs</div>
+                  <div className={"chip" + (herramientaActiva === "banco" ? " activo" : "")} onClick={() => setHerramientaActiva("banco")}>📚 Banco de Mensajes Institucionales</div>
+                  <div className={"chip" + (herramientaActiva === "constructor" ? " activo" : "")} onClick={() => setHerramientaActiva("constructor")}>✨ Constructor de Mensajes</div>
+                </div>
+
+                {herramientaActiva === "briefs" && (
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Generador de Briefs</div>
+                    <div className="form-grid">
+                      <div className="campo-form"><label>Tema</label><input type="text" placeholder="Ej. Inicio de vacunación canina" value={brief.tema} onChange={e => setBrief({ ...brief, tema: e.target.value })} /></div>
+                      <div className="campo-form"><label>Objetivo</label><input type="text" placeholder="Ej. Informar y motivar asistencia" value={brief.objetivo} onChange={e => setBrief({ ...brief, objetivo: e.target.value })} /></div>
+                      <div className="campo-form"><label>Público</label><input type="text" placeholder="Ej. Familias con mascotas" value={brief.publico} onChange={e => setBrief({ ...brief, publico: e.target.value })} /></div>
+                      <div className="campo-form"><label>Mensaje clave</label><input type="text" placeholder="Ej. Vacuna gratis este sábado" value={brief.mensaje} onChange={e => setBrief({ ...brief, mensaje: e.target.value })} /></div>
+                      <div className="campo-form"><label>Fecha</label><input type="date" value={brief.fecha} onChange={e => setBrief({ ...brief, fecha: e.target.value })} /></div>
+                      <div className="campo-form"><label>Canal</label><select value={brief.canal} onChange={e => setBrief({ ...brief, canal: e.target.value })}>{CANALES_BRIEF.map(c => <option key={c}>{c}</option>)}</select></div>
+                    </div>
+                    <button className="btn btn-primario btn-sm" style={{ marginTop: 14 }} onClick={() => setBriefGenerado(generarBrief(brief))} disabled={!brief.tema.trim()}><Sparkles style={{ width: 13, height: 13 }} /> Generar brief</button>
+                    {briefGenerado && (
+                      <div className="herramienta-resultado">
+                        <pre>{briefGenerado}</pre>
+                        <button className="btn btn-sm" onClick={() => copiarTexto(briefGenerado)}><Copy style={{ width: 12, height: 12 }} /> Copiar</button>
+                      </div>
+                    )}
+                    <div className="aviso-simulado" style={{ marginTop: 12 }}>Esto arma la estructura del brief automáticamente con lo que escribas — no reemplaza el criterio del equipo, es un punto de partida rápido.</div>
+                  </div>
+                )}
+
+                {herramientaActiva === "banco" && (
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Banco de Mensajes Institucionales</div>
+                    <div className="form-inline">
+                      <select value={nuevoMensajeBanco.categoria} onChange={e => setNuevoMensajeBanco({ ...nuevoMensajeBanco, categoria: e.target.value })}>{CATEGORIAS_BANCO.map(c => <option key={c}>{c}</option>)}</select>
+                      <input type="text" placeholder="Escribe la frase, dato o mensaje oficial" value={nuevoMensajeBanco.texto} onChange={e => setNuevoMensajeBanco({ ...nuevoMensajeBanco, texto: e.target.value })} />
+                      <button className="btn btn-primario btn-sm" onClick={agregarMensajeBanco}><Plus /> Guardar</button>
+                    </div>
+                    {CATEGORIAS_BANCO.map(cat => {
+                      const items = bancoMensajes.filter(m => m.categoria === cat);
+                      if (items.length === 0) return null;
+                      return (
+                        <div key={cat} className="selector-entregables-grupo">
+                          <div className="selector-entregables-cat">{cat}</div>
+                          {items.map(m => (
+                            <div className="ficha-item-fila" key={m.id}>
+                              <span>{m.texto}</span>
+                              <div style={{ display: "flex", gap: 8 }}>
+                                <Copy style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => copiarTexto(m.texto)} />
+                                <Trash2 style={{ width: 12, height: 12, color: "var(--dim)", cursor: "pointer" }} onClick={() => eliminarMensajeBanco(m.id)} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+                    {bancoMensajes.length === 0 && <div className="campo-vacio">Aún no hay mensajes guardados — este es el lugar para las frases y datos oficiales que todos deben repetir igual.</div>}
+                  </div>
+                )}
+
+                {herramientaActiva === "constructor" && (
+                  <div className="panel">
+                    <div className="panel-titulo panel-titulo-app">Constructor de Mensajes</div>
+                    <div className="form-inline">
+                      <input type="text" placeholder="Escribe el tema (ej. Cierre de la vía Manta-Rocafuerte)" value={temaConstructor} onChange={e => setTemaConstructor(e.target.value)} />
+                      <button className="btn btn-primario btn-sm" onClick={() => setVariantesConstructor(generarVariantesConstructor(temaConstructor))} disabled={!temaConstructor.trim()}><Sparkles style={{ width: 13, height: 13 }} /> Generar versiones</button>
+                    </div>
+                    <div className="aviso-simulado" style={{ marginTop: -8, marginBottom: 16 }}>Esto arma la estructura de cada formato con plantillas — no es una inteligencia artificial escribiendo texto creativo nuevo, es un punto de partida para que el equipo lo termine de redactar.</div>
+                    {variantesConstructor && Object.entries(variantesConstructor).map(([formato, texto]) => (
+                      <div key={formato} className="herramienta-variante">
+                        <div className="herramienta-variante-titulo">{formato} <Copy style={{ width: 12, height: 12, cursor: "pointer" }} onClick={() => copiarTexto(texto)} /></div>
+                        <pre>{texto}</pre>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </main>
         </>
         );
       })()}
+
+      {mostrarMiPerfil && usuarioActual && (
+        <ModalMiPerfil persona={usuarioActual} onClose={() => setMostrarMiPerfil(false)} onGuardar={actualizarMiPerfil} />
+      )}
 
       {unidadReportando && (
         <ModalReporteUnidad
