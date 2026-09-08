@@ -90,6 +90,22 @@ const TAREAS_SUGERIDAS = {
   "2.0": ["Publicación en redes del día", "Historias del día", "Respuesta a comentarios y mensajes"],
 };
 
+const RESPUESTAS_RAPIDAS_CHAT = ["CONTEXTO?", "OKI!", "OLI", "VAMO A DARLE", "YA EN ESO"];
+const EMOJIS_RAPIDOS_CHAT = ["😊", "😮", "👍", "👎"];
+function primerNombre(nombreCompleto) { return (nombreCompleto || "").trim().split(" ")[0] || ""; }
+function extraerMenciones(texto) {
+  const matches = (texto || "").match(/@[\p{L}0-9]+/gu) || [];
+  return matches.map(m => m.slice(1).toLowerCase());
+}
+function mensajeMencionaA(texto, nombrePersona) {
+  const primero = primerNombre(nombrePersona).toLowerCase();
+  if (!primero) return false;
+  return extraerMenciones(texto).includes(primero);
+}
+function renderTextoConMenciones(texto) {
+  const partes = (texto || "").split(/(@[\p{L}0-9]+)/gu);
+  return partes.map((parte, i) => parte.startsWith("@") ? <strong key={i} className="chat-mencion">{parte}</strong> : parte);
+}
 const NAV = [
   { id: "inicio", label: "Inicio", icon: Home, color: "#C61D2D" },
   { id: "mando", label: "Centro de Control", icon: Gauge, color: "#33383F" },
@@ -1313,6 +1329,22 @@ function EstilosGlobales() {
         .chat-burbuja-propia { align-self: flex-end; background: var(--rojo-soft); border-color: rgba(198,29,45,0.3); }
         .chat-burbuja-autor { font-size: 10.5px; font-weight: 700; color: var(--rojo); margin-bottom: 2px; }
         .chat-burbuja-texto { font-size: 13px; line-height: 1.4; white-space: pre-wrap; }
+        .chat-burbuja-mencion { border: 1.5px solid #D4AF37; background: #FFF8E1; }
+        .chat-mencion { color: var(--rojo); background: var(--rojo-soft); padding: 0 3px; border-radius: 4px; }
+        .chat-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .chat-chip-rapido { border: 1px solid var(--border); background: var(--surface-2); border-radius: 20px; padding: 5px 12px; font-size: 11.5px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .chat-chip-rapido:hover { border-color: var(--rojo); color: var(--rojo); }
+        .chat-chip-emoji { font-size: 15px; padding: 4px 10px; }
+        .chat-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 20px; background: var(--rojo); color: #fff; font-size: 10px; font-weight: 800; margin-left: 6px; }
+        .chat-badge-tile { position: absolute; top: 8px; right: 8px; margin-left: 0; }
+
+        .chat-proyecto-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 2px; }
+        .chat-proyecto-card-top { display: flex; align-items: center; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); font-weight: 700; margin-bottom: 3px; }
+        .chat-proyecto-card-nombre { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+        .chat-proyecto-card-fila { display: flex; justify-content: space-between; font-size: 11.5px; padding: 3px 0; color: var(--muted); }
+        .chat-proyecto-card-fila b { color: var(--text); }
+        .chat-proyecto-card-avance { height: 5px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 6px; }
+        .chat-proyecto-card-avance-barra { height: 100%; background: var(--rojo); }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
         .estado-punto-morado { background: #8B5CF6; }
@@ -1531,7 +1563,7 @@ export default function EcoRadar() {
   useEffect(() => { const t = setInterval(() => setReloj(new Date()), 1000 * 30); return () => clearInterval(t); }, []);
 
   useEffect(() => {
-    if (modulo !== "chat" || !sesion?.empresaId) return;
+    if (!sesion?.empresaId) return;
     setChatCargando(true); setChatError("");
     const canalId = sesion.empresaId;
     const ref = query(collection(db, "chats", canalId, "mensajes"), orderBy("creadoEn", "asc"), limit(200));
@@ -1547,12 +1579,25 @@ export default function EcoRadar() {
       }
     );
     return () => desuscribir();
-  }, [modulo, sesion?.empresaId]);
+  }, [sesion?.empresaId]);
 
-  async function enviarMensajeChat() {
-    if (!nuevoMensajeChat.trim() || !sesion?.empresaId) return;
-    const texto = nuevoMensajeChat.trim();
-    setNuevoMensajeChat("");
+  const [ultimaLecturaChat, setUltimaLecturaChat] = useState(() => cargar("eco_radar_ultima_lectura_chat", {}));
+  useEffect(() => {
+    if (modulo === "chat" && usuarioActual) {
+      setUltimaLecturaChat(prev => {
+        const actualizado = { ...prev, [usuarioActual.id]: mensajesChat.length };
+        guardar("eco_radar_ultima_lectura_chat", actualizado);
+        return actualizado;
+      });
+    }
+  }, [modulo, mensajesChat.length, usuarioActual]);
+  const indiceLeidoChat = usuarioActual ? (ultimaLecturaChat[usuarioActual.id] || 0) : mensajesChat.length;
+  const mencionesSinLeer = mensajesChat.slice(indiceLeidoChat).filter(m => mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible).length;
+
+  async function enviarMensajeChat(textoDirecto) {
+    const texto = (textoDirecto || nuevoMensajeChat).trim();
+    if (!texto || !sesion?.empresaId) return;
+    if (!textoDirecto) setNuevoMensajeChat("");
     try {
       await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
         autor: nombreVisible,
@@ -1729,6 +1774,29 @@ export default function EcoRadar() {
   }
   function eliminarProyecto(id) { setProyectos(proyectos.filter(p => p.id !== id)); }
   function avanceProyecto(p) { const ents = p.entregables || []; return ents.length ? Math.round((ents.filter(e => e.completado).length / ents.length) * 100) : (p.avanceManual || 0); }
+  const [proyectoEnviadoAviso, setProyectoEnviadoAviso] = useState(false);
+  async function enviarProyectoAlChat(p) {
+    if (!sesion?.empresaId) return;
+    try {
+      await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
+        autor: nombreVisible,
+        tipo: "proyecto",
+        proyecto: {
+          nombre: p.nombre,
+          tipoProyecto: p.tipo || "",
+          direccion: p.direccion || "",
+          encargado: p.encargado || "Sin asignar",
+          avance: avanceProyecto(p),
+          fechaEntrega: p.fechaEntrega || "",
+        },
+        creadoEn: serverTimestamp(),
+      });
+      setProyectoEnviadoAviso(true);
+      setTimeout(() => setProyectoEnviadoAviso(false), 2500);
+    } catch (err) {
+      setChatError("No se pudo enviar el proyecto al chat.");
+    }
+  }
   const [entregableForm, setEntregableForm] = useState({});
   function agregarEntregable(proyectoId) {
     const f = entregableForm[proyectoId];
@@ -2334,6 +2402,7 @@ export default function EcoRadar() {
               {itemsAccesibles.map(item => (
                 <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => setModulo(item.id)}>
                   <item.icon style={{ color: modulo === item.id ? "#fff" : (item.color || "var(--muted)") }} />{item.label}
+                  {item.id === "chat" && mencionesSinLeer > 0 && <span className="chat-badge">{mencionesSinLeer}</span>}
                 </div>
               ))}
             </nav>
@@ -2355,6 +2424,7 @@ export default function EcoRadar() {
               {itemsMasMovil.map(item => (
                 <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => { setModulo(item.id); setMenuMovilAbierto(false); }}>
                   <item.icon style={{ color: modulo === item.id ? "#fff" : (item.color || "var(--muted)") }} />{item.label}
+                  {item.id === "chat" && mencionesSinLeer > 0 && <span className="chat-badge">{mencionesSinLeer}</span>}
                 </div>
               ))}
               {esAdmin && <div className="navitem" onClick={() => { setVistaTV(true); setMenuMovilAbierto(false); }}><Tv />Modo TV</div>}
@@ -2397,9 +2467,10 @@ export default function EcoRadar() {
                 <div className="inicio-saludo">Hola, {nombreVisible} 👋</div>
                 <div className="inicio-grid">
                   {itemsAccesibles.filter(n => idsInicioGrid.includes(n.id)).map(item => (
-                    <div key={item.id} className="inicio-tile" onClick={() => setModulo(item.id)}>
+                    <div key={item.id} className="inicio-tile" onClick={() => setModulo(item.id)} style={{ position: "relative" }}>
                       <div className="inicio-tile-icono" style={{ background: (item.color || "#C61D2D") + "22", color: item.color || "#C61D2D" }}><item.icon /></div>
                       <div className="inicio-tile-label">{item.label}</div>
+                      {item.id === "chat" && mencionesSinLeer > 0 && <span className="chat-badge chat-badge-tile">{mencionesSinLeer}</span>}
                     </div>
                   ))}
                 </div>
@@ -3017,8 +3088,12 @@ export default function EcoRadar() {
                             <div className="proyecto-detalle-tipo">{seleccionado.tipo}{seleccionado.direccion ? " · " + seleccionado.direccion : ""}</div>
                             <div className="proyecto-detalle-nombre">{seleccionado.nombre}</div>
                           </div>
-                          {esAdmin && <Trash2 style={{ width: 15, height: 15, color: "var(--dim)", cursor: "pointer" }} onClick={() => { eliminarProyecto(seleccionado.id); setProyectoSeleccionado(null); }} />}
+                          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                            <MessageCircle style={{ width: 15, height: 15, color: "var(--dim)", cursor: "pointer" }} onClick={() => enviarProyectoAlChat(seleccionado)} title="Enviar tarjeta de este proyecto al chat del equipo" />
+                            {esAdmin && <Trash2 style={{ width: 15, height: 15, color: "var(--dim)", cursor: "pointer" }} onClick={() => { eliminarProyecto(seleccionado.id); setProyectoSeleccionado(null); }} />}
+                          </div>
                         </div>
+                        {proyectoEnviadoAviso && <div className="aviso-simulado" style={{ color: "var(--success)", marginTop: -10, marginBottom: 10 }}>✓ Tarjeta del proyecto enviada al Chat del equipo</div>}
 
                         {cuenta && (
                           <div className={"reloj-cuenta " + (cuenta.vencido ? "vencido" : sem)}>
@@ -3757,19 +3832,37 @@ export default function EcoRadar() {
                 {chatError && <div className="auth-error" style={{ marginBottom: 10 }}>⚠ {chatError}</div>}
                 <div className="chat-lista" ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
                   {chatCargando && <div className="campo-vacio">Conectando…</div>}
-                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir.</div>}
+                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir. Usa @Nombre para mencionar a alguien de tu equipo.</div>}
                   {mensajesChat.map(m => (
-                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "")}>
+                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "") + (mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible ? " chat-burbuja-mencion" : "")} style={m.tipo === "proyecto" ? { maxWidth: "85%" } : undefined}>
                       <div className="chat-burbuja-autor">{m.autor}</div>
-                      <div className="chat-burbuja-texto">{m.texto}</div>
+                      {m.tipo === "proyecto" && m.proyecto ? (
+                        <div className="chat-proyecto-card">
+                          <div className="chat-proyecto-card-top">
+                            <FolderKanban style={{ width: 14, height: 14 }} />
+                            <span>{m.proyecto.tipoProyecto}{m.proyecto.direccion ? " · " + m.proyecto.direccion : ""}</span>
+                          </div>
+                          <div className="chat-proyecto-card-nombre">{m.proyecto.nombre}</div>
+                          <div className="chat-proyecto-card-fila"><span>Encargado/a</span><b>{m.proyecto.encargado}</b></div>
+                          <div className="chat-proyecto-card-fila"><span>Entrega</span><b>{m.proyecto.fechaEntrega || "Sin definir"}</b></div>
+                          <div className="chat-proyecto-card-avance"><div className="chat-proyecto-card-avance-barra" style={{ width: m.proyecto.avance + "%" }} /></div>
+                          <div className="chat-proyecto-card-fila"><span>Avance</span><b>{m.proyecto.avance}%</b></div>
+                        </div>
+                      ) : (
+                        <div className="chat-burbuja-texto">{renderTextoConMenciones(m.texto)}</div>
+                      )}
                     </div>
                   ))}
                 </div>
-                <div className="form-inline" style={{ marginBottom: 0, marginTop: 10 }}>
-                  <input type="text" placeholder="Escribe un mensaje para tu equipo…" value={nuevoMensajeChat} onChange={e => setNuevoMensajeChat(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensajeChat()} />
-                  <button className="btn btn-primario btn-sm" onClick={enviarMensajeChat}>Enviar</button>
+                <div className="chat-rapidas">
+                  {RESPUESTAS_RAPIDAS_CHAT.map(r => <button key={r} className="chip chat-chip-rapido" onClick={() => enviarMensajeChat(r)}>{r}</button>)}
+                  {EMOJIS_RAPIDOS_CHAT.map(e => <button key={e} className="chip chat-chip-rapido chat-chip-emoji" onClick={() => enviarMensajeChat(e)}>{e}</button>)}
                 </div>
-                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase) — todos los que entren a Comunicación GAD Manta ven los mismos mensajes, sin importar el dispositivo.</div>
+                <div className="form-inline" style={{ marginBottom: 0, marginTop: 8 }}>
+                  <input type="text" placeholder="Escribe un mensaje… usa @Nombre para mencionar" value={nuevoMensajeChat} onChange={e => setNuevoMensajeChat(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensajeChat()} />
+                  <button className="btn btn-primario btn-sm" onClick={() => enviarMensajeChat()}>Enviar</button>
+                </div>
+                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase). Si te mencionan con @TuNombre, ese mensaje se resalta y te aparece un avisito en el menú mientras no lo hayas abierto — pero no llega como notificación al celular si tienes la app cerrada.</div>
               </div>
             )}
           </main>
