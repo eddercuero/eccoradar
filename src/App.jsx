@@ -3944,3 +3944,4 @@ useEffect(() => {
     </div>
   );
 }
+{ id: "comunicacion_externa", nombre: "Comunicación Externa", tipo: "Dirección de comunicación externa", activa: true, clave: "externa2026", ciudad: "manta" },
