@@ -33,6 +33,7 @@ const EMPRESAS = [
   { id: "comunicacion_gad", nombre: "Comunicación GAD Manta", tipo: "Dirección de comunicación", activa: true, clave: "gadmanta2026", ciudad: "manta" },
   { id: "cuerpo_bomberos", nombre: "Cuerpo de Bomberos", tipo: "Institución de socorro", activa: true, clave: "bomberos2026", ciudad: "manta" },
   { id: "epam", nombre: "EPAM (Aguas de Manta)", tipo: "Empresa pública de agua potable", activa: true, clave: "epam2026", ciudad: "manta" },
+  { id: "comunicacion_externa", nombre: "Comunicación Externa", tipo: "Dirección de comunicación externa", activa: true, clave: "externa2026", ciudad: "manta" },
 ];
 const EMPRESA_UNIDAD_DEFAULT = {
   comunicacion_gad: "Dircom (Dirección de Comunicación GAD)",
@@ -3944,4 +3945,3 @@ useEffect(() => {
     </div>
   );
 }
-{ id: "comunicacion_externa", nombre: "Comunicación Externa", tipo: "Dirección de comunicación externa", activa: true, clave: "externa2026", ciudad: "manta" },
