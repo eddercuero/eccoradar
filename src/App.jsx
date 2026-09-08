@@ -1570,6 +1570,26 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_metas", metas), [metas]);
   useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
   useEffect(() => guardar("eco_gad_proyectos", proyectos), [proyectos]);
+  const ultimoProyectosSincronizado = useRef(null);
+useEffect(() => {
+  if (!sesion?.empresaId) return;
+  const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+    if (snap.exists() && snap.data().proyectos) {
+      const recibido = JSON.stringify(snap.data().proyectos);
+      if (recibido === ultimoProyectosSincronizado.current) return;
+      ultimoProyectosSincronizado.current = recibido;
+      setProyectos(snap.data().proyectos);
+    }
+  }, () => {});
+  return () => desuscribir();
+}, [sesion?.empresaId]);
+useEffect(() => {
+  if (!sesion?.empresaId) return;
+  const serial = JSON.stringify(proyectos);
+  if (serial === ultimoProyectosSincronizado.current) return;
+  ultimoProyectosSincronizado.current = serial;
+  setDoc(doc(db, "app_data", sesion.empresaId), { proyectos }, { merge: true }).catch(() => {});
+}, [proyectos, sesion?.empresaId]);
   useEffect(() => guardar("eco_gad_cuentas", cuentas), [cuentas]);
   useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
   useEffect(() => guardar("eco_gad_web", web), [web]);
