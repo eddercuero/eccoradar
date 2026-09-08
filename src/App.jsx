@@ -14,6 +14,8 @@ import {
 } from "recharts";
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
+import { db } from "./firebase";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, limit } from "firebase/firestore";
 
 /* ---------- empresas ---------- */
 
@@ -89,20 +91,21 @@ const TAREAS_SUGERIDAS = {
 };
 
 const NAV = [
-  { id: "inicio", label: "Inicio", icon: Home },
-  { id: "mando", label: "Centro de Control", icon: Gauge },
-  { id: "resumen", label: "Resumen", icon: LayoutDashboard },
-  { id: "contenido", label: "Plan de contenido", icon: Megaphone },
-  { id: "equipo", label: "Parrilla", icon: LayoutGrid },
-  { id: "metas", label: "Metas y objetivos", icon: Target },
-  { id: "proyectos", label: "Proyectos", icon: FolderKanban },
-  { id: "ranking", label: "Dashboard", icon: Trophy },
-  { id: "redes", label: "Monitoreo de redes", icon: Radio },
-  { id: "calendario", label: "Calendario", icon: CalendarDays },
-  { id: "roles", label: "RRHH", icon: UserCog },
-  { id: "herramientas", label: "Herramientas", icon: Wrench },
+  { id: "inicio", label: "Inicio", icon: Home, color: "#C61D2D" },
+  { id: "mando", label: "Centro de Control", icon: Gauge, color: "#33383F" },
+  { id: "resumen", label: "Resumen", icon: LayoutDashboard, color: "#3A6EA5" },
+  { id: "contenido", label: "Plan de contenido", icon: Megaphone, color: "#E0A93C" },
+  { id: "equipo", label: "Parrilla", icon: LayoutGrid, color: "#8B5CF6" },
+  { id: "metas", label: "Metas y objetivos", icon: Target, color: "#1E8E4F" },
+  { id: "proyectos", label: "Proyectos", icon: FolderKanban, color: "#D97706" },
+  { id: "ranking", label: "Dashboard", icon: Trophy, color: "#D4AF37" },
+  { id: "redes", label: "Monitoreo de redes", icon: Radio, color: "#DB2777" },
+  { id: "calendario", label: "Calendario", icon: CalendarDays, color: "#0891B2" },
+  { id: "roles", label: "RRHH", icon: UserCog, color: "#4F46E5" },
+  { id: "herramientas", label: "Herramientas", icon: Wrench, color: "#059669" },
+  { id: "chat", label: "Chat del equipo", icon: MessageCircle, color: "#EA580C" },
 ];
-const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "proyectos"];
+const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "chat"];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
 const CATEGORIAS_ROLES = {
@@ -213,9 +216,9 @@ function inicioDeSemana(fecha) {
 }
 
 function accesoPorRol(rol, forzarAdmin) {
-  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["inicio", "mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles", "herramientas"];
-  if (rol === "Encargado") return ["inicio", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas"];
-  return ["inicio", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas"]; // miembro regular
+  if (rol === ROL_DIRECTORA || rol === "Asesor" || forzarAdmin) return ["inicio", "mando", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "redes", "calendario", "roles", "herramientas", "chat"];
+  if (rol === "Encargado") return ["inicio", "resumen", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas", "chat"];
+  return ["inicio", "contenido", "equipo", "metas", "proyectos", "ranking", "calendario", "herramientas", "chat"]; // miembro regular
 }
 
 /* ---------- datos semilla (GAD Manta arranca casi en blanco) ---------- */
@@ -310,16 +313,20 @@ const TIPOS_AUSENCIA = ["Vacaciones", "Permiso médico", "Permiso personal", "Pe
 const COLOR_AUSENCIA = { "Vacaciones": "morado", "Permiso médico": "amarillo", "Permiso personal": "amarillo", "Permiso institucional": "amarillo", "Día libre": "gris" };
 const CATEGORIAS_BANCO = ["Frase oficial", "Concepto central", "Dato o cifra", "Respuesta autorizada", "Narrativa institucional", "Slogan"];
 const CANALES_BRIEF = ["Diseño", "Video", "Prensa", "Redes", "Producción"];
+const INDICACIONES_POR_CANAL = {
+  "Diseño": "Diseño: crear una pieza gráfica que comunique el mensaje clave con claridad, alineada a la identidad institucional. Considerar al público objetivo al elegir tono visual, colores y tipografía.",
+  "Video": "Video: producir una pieza audiovisual que desarrolle el mensaje clave en un guion breve. Definir locaciones, entrevistados o recursos visuales antes de grabar.",
+  "Prensa": "Prensa: redactar boletín/comunicado desarrollando el mensaje clave con datos de respaldo. Confirmar vocero autorizado y verificar cifras antes de enviar a medios.",
+  "Redes": "Redes: adaptar el mensaje clave a un copy corto y directo. Sugerir formato (post, reel, historia) según el público objetivo y el canal de mayor alcance.",
+  "Producción": "Producción: coordinar los recursos (equipo, locación, logística) necesarios para materializar el mensaje clave en el formato solicitado.",
+};
 function generarBrief(b) {
-  const comun = `Tema: ${b.tema}\nObjetivo: ${b.objetivo}\nPúblico objetivo: ${b.publico}\nMensaje clave: ${b.mensaje}\nFecha: ${b.fecha}\n\n`;
-  const plantillas = {
-    "Diseño": comun + "Indicaciones para diseño: crear una pieza gráfica que comunique el mensaje clave con claridad, alineada a la identidad institucional. Considerar al público objetivo al elegir tono visual, colores y tipografía.",
-    "Video": comun + "Indicaciones para video: producir una pieza audiovisual que desarrolle el mensaje clave en un guion breve. Definir locaciones, entrevistados o recursos visuales antes de grabar.",
-    "Prensa": comun + "Indicaciones para prensa: redactar boletín/comunicado desarrollando el mensaje clave con datos de respaldo. Confirmar vocero autorizado y verificar cifras antes de enviar a medios.",
-    "Redes": comun + "Indicaciones para redes: adaptar el mensaje clave a un copy corto y directo. Sugerir formato (post, reel, historia) según el público objetivo y el canal de mayor alcance.",
-    "Producción": comun + "Indicaciones para producción: coordinar los recursos (equipo, locación, logística) necesarios para materializar el mensaje clave en el formato solicitado.",
-  };
-  return "BRIEF DE " + b.canal.toUpperCase() + "\n\n" + (plantillas[b.canal] || plantillas["Diseño"]);
+  const canales = b.canales && b.canales.length ? b.canales : ["Diseño"];
+  const indicaciones = canales.map(c => INDICACIONES_POR_CANAL[c] || "").filter(Boolean).join("\n\n");
+  return { ...b, canales, indicaciones };
+}
+function textoCompletoBrief(b) {
+  return `BRIEF · ${b.canales.join(" + ")}\n\nTema: ${b.tema}\nObjetivo: ${b.objetivo}\nPúblico objetivo: ${b.publico}\nMensaje clave: ${b.mensaje}\nFecha: ${b.fecha || "sin definir"}\nResponsable: ${b.responsable || "sin asignar"}\n\nIndicaciones:\n${b.indicaciones}`;
 }
 function generarVariantesConstructor(tema) {
   return {
@@ -667,11 +674,12 @@ function ModalReporteUnidad({ unidad, responsable, reportesHoy, onClose, onValid
 function ModalMiPerfil({ persona, onClose, onGuardar }) {
   const [nombre, setNombre] = useState(persona.nombre);
   const [correo, setCorreo] = useState(persona.correo || "");
+  const [whatsapp, setWhatsapp] = useState(persona.whatsapp || "");
   const [claveNueva, setClaveNueva] = useState("");
   const [guardado, setGuardado] = useState(false);
 
   function guardarCambiosPerfil() {
-    const cambios = { nombre: nombre.trim() || persona.nombre, correo: correo.trim() };
+    const cambios = { nombre: nombre.trim() || persona.nombre, correo: correo.trim(), whatsapp: whatsapp.trim() };
     if (claveNueva.trim()) cambios.clave = claveNueva.trim();
     onGuardar(persona.id, cambios);
     setGuardado(true);
@@ -694,6 +702,10 @@ function ModalMiPerfil({ persona, onClose, onGuardar }) {
           <div className="campo-form" style={{ marginBottom: 12 }}>
             <label>Correo electrónico</label>
             <input type="email" value={correo} onChange={e => setCorreo(e.target.value)} placeholder="tucorreo@ejemplo.com" />
+          </div>
+          <div className="campo-form" style={{ marginBottom: 12 }}>
+            <label>WhatsApp</label>
+            <input type="text" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} placeholder="Ej. 0991234567" />
           </div>
           <div className="campo-form">
             <label>Nueva clave <span className="campo-form-ayuda">déjalo vacío si no la quieres cambiar</span></label>
@@ -889,7 +901,7 @@ function EstilosGlobales() {
         .barra-fondo { height: 6px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 3px; overflow: hidden; }
         .barra-relleno { height: 100%; background: var(--rojo); border-radius: 3px; }
 
-        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 5px; font-size: 12.5px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: inherit; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 5px; font-size: 12.5px; font-weight: 500; cursor: pointer; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font-family: inherit; text-decoration: none; }
         .btn svg { width: 13px; height: 13px; }
         .btn:hover { border-color: var(--border-strong); }
         .btn-primario { background: var(--rojo); border-color: var(--rojo); color: #fff; }
@@ -1290,6 +1302,17 @@ function EstilosGlobales() {
         .herramienta-variante { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 10px; }
         .herramienta-variante-titulo { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: var(--rojo); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
         .herramienta-variante pre { white-space: pre-wrap; font-family: inherit; font-size: 12px; line-height: 1.5; margin: 0; color: var(--muted); }
+
+        .brief-card { margin-top: 16px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+        .brief-card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px dashed var(--border); }
+        .brief-card-titulo { font-family: 'IBM Plex Sans', sans-serif; font-weight: 800; font-size: 17px; }
+        .brief-card-indicaciones { font-size: 13px; line-height: 1.6; white-space: pre-wrap; }
+
+        .chat-lista { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 8px 4px; }
+        .chat-burbuja { max-width: 70%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px; padding: 8px 12px; align-self: flex-start; }
+        .chat-burbuja-propia { align-self: flex-end; background: var(--rojo-soft); border-color: rgba(198,29,45,0.3); }
+        .chat-burbuja-autor { font-size: 10.5px; font-weight: 700; color: var(--rojo); margin-bottom: 2px; }
+        .chat-burbuja-texto { font-size: 13px; line-height: 1.4; white-space: pre-wrap; }
         .estado-punto-verde { background: var(--success); }
         .estado-punto-amarillo { background: var(--warning); }
         .estado-punto-morado { background: #8B5CF6; }
@@ -1424,9 +1447,13 @@ export default function EcoRadar() {
   const [loginCodigo, setLoginCodigo] = useState("");
   const [personaLoginSeleccionada, setPersonaLoginSeleccionada] = useState(null);
   const [mostrarMiPerfil, setMostrarMiPerfil] = useState(false);
+  const [mensajesChat, setMensajesChat] = useState([]);
+  const [nuevoMensajeChat, setNuevoMensajeChat] = useState("");
+  const [chatCargando, setChatCargando] = useState(true);
+  const [chatError, setChatError] = useState("");
   const [herramientaActiva, setHerramientaActiva] = useState("briefs");
-  const [brief, setBrief] = useState({ tema: "", objetivo: "", publico: "", mensaje: "", fecha: "", canal: CANALES_BRIEF[0] });
-  const [briefGenerado, setBriefGenerado] = useState("");
+  const [brief, setBrief] = useState({ tema: "", objetivo: "", publico: "", mensaje: "", fecha: "", canales: [], responsable: "" });
+  const [briefGenerado, setBriefGenerado] = useState(null);
   const [bancoMensajes, setBancoMensajes] = useState(() => cargar("eco_gad_banco_mensajes", []));
   const [nuevoMensajeBanco, setNuevoMensajeBanco] = useState({ categoria: CATEGORIAS_BANCO[0], texto: "" });
   const [temaConstructor, setTemaConstructor] = useState("");
@@ -1502,6 +1529,40 @@ export default function EcoRadar() {
   const [correoEnviado, setCorreoEnviado] = useState(false);
 
   useEffect(() => { const t = setInterval(() => setReloj(new Date()), 1000 * 30); return () => clearInterval(t); }, []);
+
+  useEffect(() => {
+    if (modulo !== "chat" || !sesion?.empresaId) return;
+    setChatCargando(true); setChatError("");
+    const canalId = sesion.empresaId;
+    const ref = query(collection(db, "chats", canalId, "mensajes"), orderBy("creadoEn", "asc"), limit(200));
+    const desuscribir = onSnapshot(
+      ref,
+      (snap) => {
+        setMensajesChat(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+        setChatCargando(false);
+      },
+      (err) => {
+        setChatError("No se pudo conectar al chat. Revisa que Firebase esté configurado (src/firebaseConfig.js) y publicado.");
+        setChatCargando(false);
+      }
+    );
+    return () => desuscribir();
+  }, [modulo, sesion?.empresaId]);
+
+  async function enviarMensajeChat() {
+    if (!nuevoMensajeChat.trim() || !sesion?.empresaId) return;
+    const texto = nuevoMensajeChat.trim();
+    setNuevoMensajeChat("");
+    try {
+      await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
+        autor: nombreVisible,
+        texto,
+        creadoEn: serverTimestamp(),
+      });
+    } catch (err) {
+      setChatError("No se pudo enviar el mensaje. Revisa la conexión con Firebase.");
+    }
+  }
 
   function iniciarSesionEmpresa(id) {
     const emp = EMPRESAS.find(e => e.id === id);
@@ -1722,7 +1783,7 @@ export default function EcoRadar() {
   function eliminarWeb(id) { setWeb(web.filter(w => w.id !== id)); }
 
   const [mostrarFormPersona, setMostrarFormPersona] = useState(false);
-  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
+  const [nuevaPersona, setNuevaPersona] = useState({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "", correo: "", whatsapp: "" });
   function generarCodigoAuto() {
     const numericos = personas.map(p => parseInt(p.codigo, 10)).filter(n => !isNaN(n));
     const max = numericos.length ? Math.max(...numericos) : 0;
@@ -1734,7 +1795,7 @@ export default function EcoRadar() {
   function agregarPersona() {
     if (!nuevaPersona.nombre.trim() || !nuevaPersona.codigo.trim()) return;
     setPersonas([...personas, { id: Date.now(), ...nuevaPersona, unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: generarTareasFrecuentesPorDefecto(nuevaPersona.rol), ausencias: [] }]);
-    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "" });
+    setNuevaPersona({ nombre: "", codigo: "", clave: "", rol: rolesDisponibles[1] || rolesDisponibles[0], area: AREAS[0], modalidad: modalidadesDisponibles[0], jefeDirecto: "", correo: "", whatsapp: "" });
     setMostrarFormPersona(false);
   }
   function eliminarPersona(id) { setPersonas(personas.filter(p => p.id !== id)); }
@@ -1903,13 +1964,14 @@ export default function EcoRadar() {
   function copiarTexto(texto) { navigator.clipboard?.writeText(texto).catch(() => {}); }
 
   async function generarBriefConIA() {
-    setBriefError(""); setBriefCargando(true); setBriefGenerado("");
-    const prompt = `Eres redactor de comunicación institucional de un GAD municipal ecuatoriano. Escribe un brief profesional y listo para usar, para el área de ${brief.canal}, con esta información:\nTema: ${brief.tema}\nObjetivo: ${brief.objetivo}\nPúblico objetivo: ${brief.publico}\nMensaje clave: ${brief.mensaje}\nFecha: ${brief.fecha || "sin definir"}\n\nEntrégalo organizado, claro y en español, listo para que el equipo lo ejecute directamente.`;
+    setBriefError(""); setBriefCargando(true); setBriefGenerado(null);
+    const canalesTexto = brief.canales.length ? brief.canales.join(", ") : "general";
+    const prompt = `Eres director/a creativo de comunicación institucional de un GAD municipal ecuatoriano. Vas a preparar las indicaciones de un brief dirigido a los equipos de: ${canalesTexto}. Contexto:\nTema: ${brief.tema}\nObjetivo: ${brief.objetivo}\nPúblico objetivo: ${brief.publico}\nMensaje clave: ${brief.mensaje}\n\nEscribe SOLO las indicaciones de ejecución (qué hacer, enfoque, tono, formato sugerido para cada canal mencionado), en 1-3 párrafos breves, listas para que el equipo las ejecute directamente. No repitas los datos de arriba, ve directo a las indicaciones, en español.`;
     try {
       const r = await fetch("/api/generar-texto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, maxTokens: 700 }) });
       const datos = await r.json();
       if (!r.ok) throw new Error(datos.error || "La IA no pudo generar el brief.");
-      setBriefGenerado(datos.texto);
+      setBriefGenerado({ ...brief, canales: brief.canales.length ? brief.canales : ["General"], indicaciones: datos.texto });
     } catch (e) {
       setBriefError(e.message || "No se pudo conectar con la IA.");
     } finally {
@@ -1920,14 +1982,22 @@ export default function EcoRadar() {
   async function generarVariantesConIA() {
     setConstructorError(""); setConstructorCargando(true); setVariantesConstructor(null);
     const formatos = ["Discurso", "Boletín de prensa", "Post", "Reel", "WhatsApp", "Entrevista", "Vocería", "Comunicado", "Respuesta ante críticas"];
-    const prompt = `Eres redactor de comunicación institucional de un GAD municipal ecuatoriano. A partir de este tema: "${temaConstructor}", escribe un mensaje breve, natural y listo para usar en cada uno de estos formatos: ${formatos.join(", ")}. Responde ÚNICAMENTE con un JSON válido, sin texto adicional ni marcado de código, con exactamente esta forma: {"Discurso": "...", "Boletín de prensa": "...", "Post": "...", "Reel": "...", "WhatsApp": "...", "Entrevista": "...", "Vocería": "...", "Comunicado": "...", "Respuesta ante críticas": "..."}`;
+    const prompt = `Eres redactor de comunicación institucional de un GAD municipal ecuatoriano. A partir de este tema: "${temaConstructor}", escribe un mensaje breve, natural y listo para usar en cada uno de estos formatos: ${formatos.join(", ")}.\n\nResponde ÚNICAMENTE con un objeto JSON válido, sin explicaciones antes ni después, sin bloques de código markdown (nada de \`\`\`), empezando directo con { y terminando con }, con exactamente esta forma: {"Discurso": "...", "Boletín de prensa": "...", "Post": "...", "Reel": "...", "WhatsApp": "...", "Entrevista": "...", "Vocería": "...", "Comunicado": "...", "Respuesta ante críticas": "..."}\n\nEvita usar comillas dobles dentro de los textos (usa comillas simples si necesitas citar algo).`;
     try {
-      const r = await fetch("/api/generar-texto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, maxTokens: 1800 }) });
+      const r = await fetch("/api/generar-texto", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ prompt, maxTokens: 2500 }) });
       const datos = await r.json();
       if (!r.ok) throw new Error(datos.error || "La IA no pudo generar los mensajes.");
+      let crudo = (datos.texto || "").replace(/```json/gi, "").replace(/```/g, "").trim();
+      const inicio = crudo.indexOf("{");
+      const fin = crudo.lastIndexOf("}");
+      if (inicio !== -1 && fin !== -1 && fin > inicio) crudo = crudo.slice(inicio, fin + 1);
       let json;
-      try { json = JSON.parse(datos.texto.replace(/```json|```/g, "").trim()); }
-      catch { throw new Error("La IA respondió en un formato inesperado — intenta de nuevo."); }
+      try { json = JSON.parse(crudo); }
+      catch {
+        setVariantesConstructor({ "Respuesta de la IA (sin formato perfecto, pero aquí está)": datos.texto || "Sin contenido." });
+        setConstructorCargando(false);
+        return;
+      }
       setVariantesConstructor(json);
     } catch (e) {
       setConstructorError(e.message || "No se pudo conectar con la IA.");
@@ -1982,7 +2052,7 @@ export default function EcoRadar() {
 
   function descargarPlantillaExcel() {
     const filas = [
-      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación" },
+      { Nombre: "Ej. María Zambrano", Codigo: "002", Clave: "clave002", Rol: "Redactor", Area: "Institucional", Modalidad: "LOSEP", JefeDirecto: "Directora de Comunicación", Correo: "maria@example.com", WhatsApp: "0991234567" },
     ];
     const hoja = XLSX.utils.json_to_sheet(filas);
     const libro = XLSX.utils.book_new();
@@ -2003,6 +2073,7 @@ export default function EcoRadar() {
         nombre: String(f.Nombre), codigo: String(f.Codigo), clave: String(f.Clave || f.Codigo),
         rol: String(f.Rol || "Miembro"), area: String(f.Area || AREAS[0]),
         modalidad: String(f.Modalidad || modalidadesDisponibles[0]), jefeDirecto: f.JefeDirecto ? String(f.JefeDirecto) : "",
+        correo: f.Correo ? String(f.Correo) : "", whatsapp: f.WhatsApp ? String(f.WhatsApp) : "",
         unidad: unidadActual, foto: "", horario: [], tareasFrecuentes: [], ausencias: [],
       }));
       if (nuevas.length) {
@@ -2262,7 +2333,7 @@ export default function EcoRadar() {
             <nav className="navlist">
               {itemsAccesibles.map(item => (
                 <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => setModulo(item.id)}>
-                  <item.icon />{item.label}
+                  <item.icon style={{ color: modulo === item.id ? "#fff" : (item.color || "var(--muted)") }} />{item.label}
                 </div>
               ))}
             </nav>
@@ -2283,7 +2354,7 @@ export default function EcoRadar() {
             <nav className="navlist">
               {itemsMasMovil.map(item => (
                 <div key={item.id} className={"navitem" + (modulo === item.id ? " activo" : "")} onClick={() => { setModulo(item.id); setMenuMovilAbierto(false); }}>
-                  <item.icon />{item.label}
+                  <item.icon style={{ color: modulo === item.id ? "#fff" : (item.color || "var(--muted)") }} />{item.label}
                 </div>
               ))}
               {esAdmin && <div className="navitem" onClick={() => { setVistaTV(true); setMenuMovilAbierto(false); }}><Tv />Modo TV</div>}
@@ -2320,14 +2391,14 @@ export default function EcoRadar() {
             </div>
 
             {modulo === "inicio" && (() => {
-              const idsInicioGrid = ["contenido", "equipo", "proyectos", "calendario", "roles", "herramientas"];
+              const idsInicioGrid = ["contenido", "equipo", "proyectos", "calendario", "roles", "herramientas", "chat"];
               return (
               <>
                 <div className="inicio-saludo">Hola, {nombreVisible} 👋</div>
                 <div className="inicio-grid">
                   {itemsAccesibles.filter(n => idsInicioGrid.includes(n.id)).map(item => (
                     <div key={item.id} className="inicio-tile" onClick={() => setModulo(item.id)}>
-                      <div className="inicio-tile-icono"><item.icon /></div>
+                      <div className="inicio-tile-icono" style={{ background: (item.color || "#C61D2D") + "22", color: item.color || "#C61D2D" }}><item.icon /></div>
                       <div className="inicio-tile-label">{item.label}</div>
                     </div>
                   ))}
@@ -3339,6 +3410,8 @@ export default function EcoRadar() {
                     <>
                       <div className="form-inline">
                         <input type="text" placeholder="Nombre completo" value={nuevaPersona.nombre} onChange={e => setNuevaPersona({ ...nuevaPersona, nombre: e.target.value })} />
+                        <input type="email" placeholder="Correo (opcional)" value={nuevaPersona.correo} onChange={e => setNuevaPersona({ ...nuevaPersona, correo: e.target.value })} style={{ minWidth: 150 }} />
+                        <input type="text" placeholder="WhatsApp (opcional, ej. 0991234567)" value={nuevaPersona.whatsapp} onChange={e => setNuevaPersona({ ...nuevaPersona, whatsapp: e.target.value })} style={{ minWidth: 150 }} />
                         <input type="text" placeholder="Código (ej. 002)" value={nuevaPersona.codigo} onChange={e => setNuevaPersona({ ...nuevaPersona, codigo: e.target.value })} style={{ width: 100, flex: "initial" }} />
                         <input type="text" placeholder="Clave" value={nuevaPersona.clave} onChange={e => setNuevaPersona({ ...nuevaPersona, clave: e.target.value })} style={{ width: 110, flex: "initial" }} />
                         <select value={nuevaPersona.rol} onChange={e => setNuevaPersona({ ...nuevaPersona, rol: e.target.value, jefeDirecto: e.target.value === ROL_DIRECTORA ? "Alcaldía" : nuevaPersona.jefeDirecto })}>
@@ -3560,7 +3633,9 @@ export default function EcoRadar() {
                   <div className={"chip" + (herramientaActiva === "constructor" ? " activo" : "")} onClick={() => setHerramientaActiva("constructor")}>✨ Constructor de Mensajes</div>
                 </div>
 
-                {herramientaActiva === "briefs" && (
+                {herramientaActiva === "briefs" && (() => {
+                  const responsableBrief = personasEquipo.find(p => p.nombre === brief.responsable);
+                  return (
                   <div className="panel">
                     <div className="panel-titulo panel-titulo-app">Generador de Briefs</div>
                     <div className="form-grid">
@@ -3569,22 +3644,61 @@ export default function EcoRadar() {
                       <div className="campo-form"><label>Público</label><input type="text" placeholder="Ej. Familias con mascotas" value={brief.publico} onChange={e => setBrief({ ...brief, publico: e.target.value })} /></div>
                       <div className="campo-form"><label>Mensaje clave</label><input type="text" placeholder="Ej. Vacuna gratis este sábado" value={brief.mensaje} onChange={e => setBrief({ ...brief, mensaje: e.target.value })} /></div>
                       <div className="campo-form"><label>Fecha</label><input type="date" value={brief.fecha} onChange={e => setBrief({ ...brief, fecha: e.target.value })} /></div>
-                      <div className="campo-form"><label>Canal</label><select value={brief.canal} onChange={e => setBrief({ ...brief, canal: e.target.value })}>{CANALES_BRIEF.map(c => <option key={c}>{c}</option>)}</select></div>
+                      <div className="campo-form">
+                        <label>¿A quién se le envía?</label>
+                        <select value={brief.responsable} onChange={e => setBrief({ ...brief, responsable: e.target.value })}>
+                          <option value="">Sin asignar</option>
+                          {personasEquipo.map(p => <option key={p.id} value={p.nombre}>{p.nombre} — {p.rol}</option>)}
+                        </select>
+                      </div>
                     </div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                    <div className="campo-form" style={{ marginBottom: 4 }}><label>Canales (elige una o varias)</label></div>
+                    <div className="chips">
+                      {CANALES_BRIEF.map(c => (
+                        <div key={c} className={"chip" + (brief.canales.includes(c) ? " activo" : "")} onClick={() => setBrief({ ...brief, canales: brief.canales.includes(c) ? brief.canales.filter(x => x !== c) : [...brief.canales, c] })}>{c}</div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                       <button className="btn btn-primario btn-sm" onClick={generarBriefConIA} disabled={!brief.tema.trim() || briefCargando}><Sparkles style={{ width: 13, height: 13 }} /> {briefCargando ? "Generando…" : "Generar brief con IA"}</button>
                       <button className="btn btn-sm" onClick={() => { setBriefError(""); setBriefGenerado(generarBrief(brief)); }} disabled={!brief.tema.trim() || briefCargando}>Usar plantilla sin IA</button>
                     </div>
                     {briefError && <div className="auth-error" style={{ marginTop: 10 }}>⚠ {briefError} — puedes usar "Plantilla sin IA" mientras tanto.</div>}
+
                     {briefGenerado && (
-                      <div className="herramienta-resultado">
-                        <pre>{briefGenerado}</pre>
-                        <button className="btn btn-sm" onClick={() => copiarTexto(briefGenerado)}><Copy style={{ width: 12, height: 12 }} /> Copiar</button>
+                      <div className="brief-card">
+                        <div className="brief-card-header">
+                          <div className="brief-card-titulo">{briefGenerado.tema}</div>
+                          <div className="chips" style={{ marginBottom: 0 }}>{briefGenerado.canales.map(c => <span key={c} className="etiqueta etq-baja">{c}</span>)}</div>
+                        </div>
+                        <div className="proyecto-detalle-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                          <div><div className="proyecto-detalle-etiqueta">Objetivo</div><div className="proyecto-detalle-valor">{briefGenerado.objetivo || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Público</div><div className="proyecto-detalle-valor">{briefGenerado.publico || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Mensaje clave</div><div className="proyecto-detalle-valor">{briefGenerado.mensaje || "—"}</div></div>
+                          <div><div className="proyecto-detalle-etiqueta">Fecha</div><div className="proyecto-detalle-valor">{briefGenerado.fecha || "Sin definir"}</div></div>
+                        </div>
+                        <div style={{ marginTop: 14 }}>
+                          <div className="proyecto-detalle-etiqueta">Indicaciones</div>
+                          <div className="brief-card-indicaciones">{briefGenerado.indicaciones}</div>
+                        </div>
+                        <div style={{ marginTop: 14 }}>
+                          <div className="proyecto-detalle-etiqueta">Enviar a</div>
+                          <div className="proyecto-detalle-valor">{briefGenerado.responsable || "Sin asignar"}{responsableBrief && !responsableBrief.correo && !responsableBrief.whatsapp && <span style={{ fontWeight: 400, color: "var(--dim)", fontSize: 11 }}> — no tiene correo ni WhatsApp registrado en RRHH</span>}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                          <button className="btn btn-sm" onClick={() => copiarTexto(textoCompletoBrief(briefGenerado))}><Copy style={{ width: 12, height: 12 }} /> Copiar</button>
+                          {responsableBrief?.correo && (
+                            <a className="btn btn-sm" href={`mailto:${responsableBrief.correo}?subject=${encodeURIComponent("Brief: " + briefGenerado.tema)}&body=${encodeURIComponent(textoCompletoBrief(briefGenerado))}`}><Mail style={{ width: 12, height: 12 }} /> Enviar por correo</a>
+                          )}
+                          {responsableBrief?.whatsapp && (
+                            <a className="btn btn-sm" href={`https://wa.me/${responsableBrief.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(textoCompletoBrief(briefGenerado))}`} target="_blank" rel="noreferrer"><MessageCircle style={{ width: 12, height: 12 }} /> Enviar por WhatsApp</a>
+                          )}
+                        </div>
                       </div>
                     )}
-                    <div className="aviso-simulado" style={{ marginTop: 12 }}>Con IA, el texto lo redacta de verdad Claude según lo que escribas. Sin IA, arma una plantilla fija — útil si la IA no está configurada todavía.</div>
+                    <div className="aviso-simulado" style={{ marginTop: 12 }}>Con IA, el texto lo redacta de verdad Claude según lo que escribas. Sin IA, arma una plantilla fija. Para que salgan los botones de enviar, la persona elegida debe tener su correo y/o WhatsApp guardados en RRHH (o en "Mi perfil" si es ella misma quien los pone).</div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {herramientaActiva === "banco" && (
                   <div className="panel">
@@ -3635,6 +3749,28 @@ export default function EcoRadar() {
                   </div>
                 )}
               </>
+            )}
+
+            {modulo === "chat" && (
+              <div className="panel" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 190px)" }}>
+                <div className="panel-titulo panel-titulo-app">Chat del equipo · {EMPRESAS.find(e => e.id === sesion?.empresaId)?.nombre}</div>
+                {chatError && <div className="auth-error" style={{ marginBottom: 10 }}>⚠ {chatError}</div>}
+                <div className="chat-lista" ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
+                  {chatCargando && <div className="campo-vacio">Conectando…</div>}
+                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir.</div>}
+                  {mensajesChat.map(m => (
+                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "")}>
+                      <div className="chat-burbuja-autor">{m.autor}</div>
+                      <div className="chat-burbuja-texto">{m.texto}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="form-inline" style={{ marginBottom: 0, marginTop: 10 }}>
+                  <input type="text" placeholder="Escribe un mensaje para tu equipo…" value={nuevoMensajeChat} onChange={e => setNuevoMensajeChat(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensajeChat()} />
+                  <button className="btn btn-primario btn-sm" onClick={enviarMensajeChat}>Enviar</button>
+                </div>
+                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase) — todos los que entren a Comunicación GAD Manta ven los mismos mensajes, sin importar el dispositivo.</div>
+              </div>
             )}
           </main>
         </>
