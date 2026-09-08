@@ -15,7 +15,7 @@ import {
 import { jsPDF } from "jspdf";
 import * as XLSX from "xlsx";
 import { db } from "./firebase";
-import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, limit } from "firebase/firestore";
+import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, limit, doc, setDoc } from "firebase/firestore";
 
 /* ---------- empresas ---------- */
 
@@ -1530,6 +1530,29 @@ export default function EcoRadar() {
   const [eventos, setEventos] = useState(() => cargar("eco_gad_eventos", VACIO.eventos));
 
   useEffect(() => guardar("eco_gad_personas", personas), [personas]);
+
+  // ---- Sincronización en la nube de RRHH (Firestore) para que se vea igual desde cualquier dispositivo ----
+  const ultimoPersonasSincronizado = useRef(null);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      if (snap.exists() && snap.data().personas) {
+        const recibido = JSON.stringify(snap.data().personas);
+        if (recibido === ultimoPersonasSincronizado.current) return;
+        ultimoPersonasSincronizado.current = recibido;
+        setPersonas(snap.data().personas);
+      }
+    }, () => { /* si falla la nube, se sigue usando lo local sin romper nada */ });
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(personas);
+    if (serial === ultimoPersonasSincronizado.current) return;
+    ultimoPersonasSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { personas }, { merge: true }).catch(() => {});
+  }, [personas, sesion?.empresaId]);
+
   useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
   useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
   useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
