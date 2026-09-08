@@ -1582,18 +1582,6 @@ export default function EcoRadar() {
   }, [sesion?.empresaId]);
 
   const [ultimaLecturaChat, setUltimaLecturaChat] = useState(() => cargar("eco_radar_ultima_lectura_chat", {}));
-  useEffect(() => {
-    if (modulo === "chat" && usuarioActual) {
-      setUltimaLecturaChat(prev => {
-        const actualizado = { ...prev, [usuarioActual.id]: mensajesChat.length };
-        guardar("eco_radar_ultima_lectura_chat", actualizado);
-        return actualizado;
-      });
-    }
-  }, [modulo, mensajesChat.length, usuarioActual]);
-  const indiceLeidoChat = usuarioActual ? (ultimaLecturaChat[usuarioActual.id] || 0) : mensajesChat.length;
-  const mencionesSinLeer = mensajesChat.slice(indiceLeidoChat).filter(m => mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible).length;
-
   async function enviarMensajeChat(textoDirecto) {
     const texto = (textoDirecto || nuevoMensajeChat).trim();
     if (!texto || !sesion?.empresaId) return;
@@ -1672,6 +1660,18 @@ export default function EcoRadar() {
 
   const enWorkspace = (sesion?.tipo === "usuario") || (sesion?.tipo === "asesor" && empresaAsesorViendo === "comunicacion_gad");
   const nombreVisible = usuarioActual ? usuarioActual.nombre : "Asesor";
+
+  useEffect(() => {
+    if (modulo === "chat" && usuarioActual) {
+      setUltimaLecturaChat(prev => {
+        const actualizado = { ...prev, [usuarioActual.id]: mensajesChat.length };
+        guardar("eco_radar_ultima_lectura_chat", actualizado);
+        return actualizado;
+      });
+    }
+  }, [modulo, mensajesChat.length, usuarioActual]);
+  const indiceLeidoChat = usuarioActual ? (ultimaLecturaChat[usuarioActual.id] || 0) : mensajesChat.length;
+  const mencionesSinLeer = mensajesChat.slice(indiceLeidoChat).filter(m => mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible).length;
 
   const tareasVisibles = esAdmin ? tareas : tareas.filter(t => t.responsable === nombreVisible);
   const metasPropias = esAdmin ? metas : metas.filter(m => m.persona === nombreVisible);
