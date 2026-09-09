@@ -1569,7 +1569,6 @@ export default function EcoRadar() {
     if (empresaIdAnteriorRef.current === actual) return;
     empresaIdAnteriorRef.current = actual;
     permitirEscribirRef.current = false;
-    setPersonas([]);
     setTareas(VACIO.tareas);
     setMetas(VACIO.metas);
     setTurnos(VACIO.turnos);
@@ -1881,14 +1880,29 @@ export default function EcoRadar() {
       return [...prev, nuevoDirector];
     });
   }
-  function confirmarClaveEmpresa() {
+  async function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
     if (claveEmpresaInput === "000" || claveEmpresaInput === emp.clave) {
       setErrorLogin("");
       const unidadDeEmpresa = EMPRESA_UNIDAD_DEFAULT[empresaEnProceso];
       if (unidadDeEmpresa) {
         setUnidadActual(unidadDeEmpresa);
-        asegurarDirectorPorDefecto(unidadDeEmpresa);
+        try {
+          // Preguntamos primero a la nube (en vez de confiar en lo que haya
+          // cargado localmente hasta ahora) para no crear un director de
+          // repuesto si esta institución YA tiene gente real guardada.
+          const ref = doc(db, "app_data", empresaEnProceso);
+          const snap = await getDoc(ref);
+          const personasNube = (snap.exists() && Array.isArray(snap.data().personas)) ? snap.data().personas : [];
+          if (personasNube.length) {
+            setPersonas(personasNube);
+            ultimoPersonasSincronizado.current = JSON.stringify(personasNube);
+          }
+          const yaExisteEnUnidad = personasNube.some(p => (p.unidad || UNIDADES_SEED[0]) === unidadDeEmpresa);
+          if (!yaExisteEnUnidad) asegurarDirectorPorDefecto(unidadDeEmpresa);
+        } catch {
+          asegurarDirectorPorDefecto(unidadDeEmpresa);
+        }
       }
       setPaso("elegir-perfil");
     }
@@ -1938,10 +1952,20 @@ export default function EcoRadar() {
   const esAdmin = rolActual === ROL_DIRECTORA || rolActual === "Asesor" || esCodigoDirectora;
   const accesoPermitido = rolActual ? accesoPorRol(rolActual, esCodigoDirectora) : [];
 
+  useEffect(() => {
+    if (sesion?.tipo === "usuario" && personas.length > 0 && !usuarioActual) {
+      // La sesión guardada apunta a alguien que ya no existe en esta
+      // institución (por ejemplo, si se recreó su usuario) — en vez de dejar
+      // la pantalla en blanco, mandamos de vuelta al login para entrar de nuevo.
+      cerrarSesion();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion?.tipo, sesion?.usuarioId, personas.length, usuarioActual]);
+
   useEffect(() => { if (rolActual && !accesoPermitido.includes(modulo)) setModulo(accesoPermitido[0]); /* eslint-disable-next-line */ }, [rolActual]);
 
   const enWorkspace = (sesion?.tipo === "usuario") || (sesion?.tipo === "asesor" && empresaAsesorViendo === "comunicacion_gad");
-  const nombreVisible = usuarioActual ? usuarioActual.nombre : "Asesor";
+  const nombreVisible = usuarioActual ? usuarioActual.nombre : (sesion?.tipo === "asesor" ? "Asesor" : "Cargando…");
 
   useEffect(() => {
     if (modulo === "chat" && usuarioActual) {
