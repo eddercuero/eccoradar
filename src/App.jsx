@@ -40,6 +40,7 @@ const EMPRESA_UNIDAD_DEFAULT = {
   cuerpo_bomberos: "Cuerpo de Bomberos",
   epam: "Aguas de Manta",
   "107_mejor_ciudad": "107 Mejor Ciudad",
+  comunicacion_externa: "Comunicación Externa",
 };
 
 const CLAVE_ASESOR = "asesor2026";
