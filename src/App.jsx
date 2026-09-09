@@ -108,6 +108,14 @@ function renderTextoConMenciones(texto) {
   const partes = (texto || "").split(/(@[\p{L}0-9]+)/gu);
   return partes.map((parte, i) => parte.startsWith("@") ? <strong key={i} className="chat-mencion">{parte}</strong> : parte);
 }
+function colorPersonaChat(nombre) {
+  const paleta = ["#C61D2D", "#2563EB", "#7C3AED", "#059669", "#D97706", "#DB2777", "#0891B2", "#4F46E5"];
+  const indice = Math.floor(hashSeed(nombre || "usuario") * paleta.length) % paleta.length;
+  return paleta[indice];
+}
+function inicialesPersona(nombre) {
+  return (nombre || "?").trim().split(/\s+/).filter(Boolean).slice(0, 2).map(p => p[0]?.toUpperCase()).join("") || "?";
+}
 const NAV = [
   { id: "inicio", label: "Inicio", icon: Home, color: "#C61D2D" },
   { id: "mando", label: "Centro de Control", icon: Gauge, color: "#33383F" },
@@ -1339,6 +1347,23 @@ function EstilosGlobales() {
         .chat-chip-emoji { font-size: 15px; padding: 4px 10px; }
         .chat-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 20px; background: var(--rojo); color: #fff; font-size: 10px; font-weight: 800; margin-left: 6px; }
         .chat-badge-tile { position: absolute; top: 8px; right: 8px; margin-left: 0; }
+        .chat-app-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+        .chat-app-header-info { display: flex; align-items: center; gap: 10px; }
+        .chat-app-header-icono { width: 38px; height: 38px; border-radius: 12px; background: var(--rojo-soft); color: var(--rojo); display: flex; align-items: center; justify-content: center; }
+        .chat-app-header-icono svg { width: 18px; height: 18px; }
+        .chat-app-header-titulo { font-size: 14px; font-weight: 800; }
+        .chat-app-header-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+        .chat-mensaje-fila { display: flex; gap: 9px; align-items: flex-end; max-width: 82%; align-self: flex-start; }
+        .chat-mensaje-fila.propio { align-self: flex-end; flex-direction: row-reverse; }
+        .chat-avatar { width: 32px; height: 32px; border-radius: 50%; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800; overflow: hidden; flex-shrink: 0; box-shadow: 0 1px 4px rgba(0,0,0,0.12); }
+        .chat-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .chat-mensaje-contenido { min-width: 0; max-width: 100%; }
+        .chat-mensaje-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--dim); margin: 0 4px 3px; }
+        .chat-mensaje-fila.propio .chat-mensaje-meta { justify-content: flex-end; }
+        .chat-mensaje-rol { font-size: 9.5px; padding: 1px 5px; border-radius: 10px; background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+        .chat-compose { display: flex; gap: 8px; align-items: center; padding: 10px; margin-top: 8px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); }
+        .chat-compose input { flex: 1; border: none; background: transparent; outline: none; font-family: inherit; font-size: 13px; min-width: 0; }
+        .chat-compose button { border-radius: 10px; }
 
         .chat-proyecto-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 2px; }
         .chat-proyecto-card-top { display: flex; align-items: center; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); font-weight: 700; margin-bottom: 3px; }
@@ -1474,6 +1499,7 @@ function EstilosGlobales() {
 
 export default function EcoRadar() {
   const [sesion, setSesion] = useState(() => cargar("eco_radar_sesion", null));
+  const claveLocalEmpresa = (base) => `${base}__${sesion?.empresaId || "sin_empresa"}`;
   const [paso, setPaso] = useState("ciudad");
   const [ciudadElegida, setCiudadElegida] = useState(null);
   const [empresaEnProceso, setEmpresaEnProceso] = useState(null);
@@ -1501,45 +1527,65 @@ export default function EcoRadar() {
 
   const [personas, setPersonas] = useState([]);
   const [rolesDisponibles, setRolesDisponibles] = useState(() => {
-    const guardados = cargar("eco_gad_roles_disp", ROLES_SEED);
+    const guardados = cargar(claveLocalEmpresa("eco_gad_roles_disp"), ROLES_SEED);
     return Array.from(new Set([...ROLES_SEED, ...guardados]));
   });
-  const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar("eco_gad_modalidades_disp", MODALIDADES_SEED));
-  const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar("eco_gad_unidades_disp", UNIDADES_SEED));
-  const [canalesContenidoDisponibles, setCanalesContenidoDisponibles] = useState(() => cargar("eco_gad_canales_contenido", CANALES_CONTENIDO_SEED));
-  const [responsablesUnidad, setResponsablesUnidad] = useState(() => cargar("eco_gad_responsables_unidad", {}));
-  const [reportesDiarios, setReportesDiarios] = useState(() => cargar("eco_gad_reportes_diarios", []));
-  const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar("eco_gad_solicitudes_apoyo", []));
+  const [modalidadesDisponibles, setModalidadesDisponibles] = useState(() => cargar(claveLocalEmpresa("eco_gad_modalidades_disp"), MODALIDADES_SEED));
+  const [unidadesDisponibles, setUnidadesDisponibles] = useState(() => cargar(claveLocalEmpresa("eco_gad_unidades_disp"), UNIDADES_SEED));
+  const [canalesContenidoDisponibles, setCanalesContenidoDisponibles] = useState(() => cargar(claveLocalEmpresa("eco_gad_canales_contenido"), CANALES_CONTENIDO_SEED));
+  const [responsablesUnidad, setResponsablesUnidad] = useState(() => cargar(claveLocalEmpresa("eco_gad_responsables_unidad"), {}));
+  const [reportesDiarios, setReportesDiarios] = useState(() => cargar(claveLocalEmpresa("eco_gad_reportes_diarios"), []));
+  const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar(claveLocalEmpresa("eco_gad_solicitudes_apoyo"), []));
   const [contenidoPlan, setContenidoPlan] = useState([]);
-  const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
+  const [unidadActual, setUnidadActual] = useState(() => cargar(claveLocalEmpresa("eco_gad_unidad_actual"), UNIDADES_SEED[0]));
   const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
-    const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
+    const guardados = cargar(claveLocalEmpresa("eco_gad_tipos_entregable"), TIPOS_ENTREGABLE);
     return Array.from(new Set([...TIPOS_ENTREGABLE, ...guardados]));
   });
-  const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
-  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
+  const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar(claveLocalEmpresa("eco_gad_tipos_proyecto"), TIPOS_PROYECTO_SEED));
+  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar(claveLocalEmpresa("eco_gad_direcciones"), DIRECCIONES_SEED));
   const [tareas, setTareas] = useState(VACIO.tareas);
   const [metas, setMetas] = useState(VACIO.metas);
   const [turnos, setTurnos] = useState(VACIO.turnos);
   const [proyectos, setProyectos] = useState(VACIO.proyectos);
   const [cuentas, setCuentas] = useState(CUENTAS_INICIALES);
-  const [cobertura, setCobertura] = useState(() => cargar("eco_gad_cobertura", COBERTURA_BASE));
-  const [web, setWeb] = useState(() => cargar("eco_gad_web", []));
+  const [cobertura, setCobertura] = useState(() => cargar(claveLocalEmpresa("eco_gad_cobertura"), COBERTURA_BASE));
+  const [web, setWeb] = useState(() => cargar(claveLocalEmpresa("eco_gad_web"), []));
   const [eventos, setEventos] = useState(VACIO.eventos);
 
-  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
-  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_canales_contenido", canalesContenidoDisponibles), [canalesContenidoDisponibles]);
-  useEffect(() => guardar("eco_gad_responsables_unidad", responsablesUnidad), [responsablesUnidad]);
-  useEffect(() => guardar("eco_gad_reportes_diarios", reportesDiarios), [reportesDiarios]);
-  useEffect(() => guardar("eco_gad_solicitudes_apoyo", solicitudesApoyo), [solicitudesApoyo]);
-  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
-  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
-  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
-  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
-  useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
-  useEffect(() => guardar("eco_gad_web", web), [web]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_roles_disp"), rolesDisponibles); }, [rolesDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_modalidades_disp"), modalidadesDisponibles); }, [modalidadesDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_unidades_disp"), unidadesDisponibles); }, [unidadesDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_canales_contenido"), canalesContenidoDisponibles); }, [canalesContenidoDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_responsables_unidad"), responsablesUnidad); }, [responsablesUnidad, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_reportes_diarios"), reportesDiarios); }, [reportesDiarios, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_solicitudes_apoyo"), solicitudesApoyo); }, [solicitudesApoyo, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_unidad_actual"), unidadActual); }, [unidadActual, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_tipos_entregable"), tiposEntregableDisponibles); }, [tiposEntregableDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_tipos_proyecto"), tiposProyectoDisponibles); }, [tiposProyectoDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_direcciones"), direccionesDisponibles); }, [direccionesDisponibles, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_cobertura"), cobertura); }, [cobertura, sesion?.empresaId]);
+  useEffect(() => { if (sesion?.empresaId) guardar(claveLocalEmpresa("eco_gad_web"), web); }, [web, sesion?.empresaId]);
+
+  // Configuración local AISLADA por institución. Al cambiar de empresa,
+  // recargamos sus catálogos y preferencias para no mezclar Bomberos, EPAM, Dircom, etc.
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    setRolesDisponibles(Array.from(new Set([...ROLES_SEED, ...cargar(claveLocalEmpresa("eco_gad_roles_disp"), ROLES_SEED)])));
+    setModalidadesDisponibles(cargar(claveLocalEmpresa("eco_gad_modalidades_disp"), MODALIDADES_SEED));
+    setUnidadesDisponibles(cargar(claveLocalEmpresa("eco_gad_unidades_disp"), UNIDADES_SEED));
+    setCanalesContenidoDisponibles(cargar(claveLocalEmpresa("eco_gad_canales_contenido"), CANALES_CONTENIDO_SEED));
+    setResponsablesUnidad(cargar(claveLocalEmpresa("eco_gad_responsables_unidad"), {}));
+    setReportesDiarios(cargar(claveLocalEmpresa("eco_gad_reportes_diarios"), []));
+    setSolicitudesApoyo(cargar(claveLocalEmpresa("eco_gad_solicitudes_apoyo"), []));
+    setUnidadActual(cargar(claveLocalEmpresa("eco_gad_unidad_actual"), EMPRESA_UNIDAD_DEFAULT[sesion.empresaId] || UNIDADES_SEED[0]));
+    setTiposEntregableDisponibles(Array.from(new Set([...TIPOS_ENTREGABLE, ...cargar(claveLocalEmpresa("eco_gad_tipos_entregable"), TIPOS_ENTREGABLE)])));
+    setTiposProyectoDisponibles(cargar(claveLocalEmpresa("eco_gad_tipos_proyecto"), TIPOS_PROYECTO_SEED));
+    setDireccionesDisponibles(cargar(claveLocalEmpresa("eco_gad_direcciones"), DIRECCIONES_SEED));
+    setCobertura(cargar(claveLocalEmpresa("eco_gad_cobertura"), COBERTURA_BASE));
+    setWeb(cargar(claveLocalEmpresa("eco_gad_web"), []));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sesion?.empresaId]);
 
   /* ============================================================================
      SINCRONIZACIÓN POR INSTITUCIÓN (Firestore, colección app_data/{empresaId})
@@ -1804,6 +1850,11 @@ export default function EcoRadar() {
     try {
       await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
         autor: nombreVisible,
+        autorId: usuarioActual?.id || "asesor",
+        autorRol: rolActual || "Miembro",
+        autorFoto: usuarioActual?.foto || "",
+        autorColor: colorPersonaChat(nombreVisible),
+        empresaId: sesion.empresaId,
         texto,
         creadoEn: serverTimestamp(),
       });
@@ -2020,6 +2071,11 @@ export default function EcoRadar() {
     try {
       await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
         autor: nombreVisible,
+        autorId: usuarioActual?.id || "asesor",
+        autorRol: rolActual || "Miembro",
+        autorFoto: usuarioActual?.foto || "",
+        autorColor: colorPersonaChat(nombreVisible),
+        empresaId: sesion.empresaId,
         tipo: "proyecto",
         proyecto: {
           nombre: p.nombre,
@@ -4067,42 +4123,62 @@ export default function EcoRadar() {
             )}
 
             {modulo === "chat" && (
-              <div className="panel" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 190px)" }}>
-                <div className="panel-titulo panel-titulo-app">Chat del equipo · {EMPRESAS.find(e => e.id === sesion?.empresaId)?.nombre}</div>
+              <div className="panel" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 190px)", padding: 16 }}>
+                <div className="chat-app-header">
+                  <div className="chat-app-header-info">
+                    <div className="chat-app-header-icono"><MessageCircle /></div>
+                    <div>
+                      <div className="chat-app-header-titulo">Chat interno · {EMPRESAS.find(e => e.id === sesion?.empresaId)?.nombre}</div>
+                      <div className="chat-app-header-sub">Canal privado de esta institución · {personas.length} integrantes</div>
+                    </div>
+                  </div>
+                  <span className="etiqueta etq-completado">● En vivo</span>
+                </div>
                 {chatError && <div className="auth-error" style={{ marginBottom: 10 }}>⚠ {chatError}</div>}
                 <div className="chat-lista" ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
                   {chatCargando && <div className="campo-vacio">Conectando…</div>}
-                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir. Usa @Nombre para mencionar a alguien de tu equipo.</div>}
-                  {mensajesChat.map(m => (
-                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "") + (mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible ? " chat-burbuja-mencion" : "")} style={m.tipo === "proyecto" ? { maxWidth: "85%" } : undefined}>
-                      <div className="chat-burbuja-autor">{m.autor}</div>
-                      {m.tipo === "proyecto" && m.proyecto ? (
-                        <div className="chat-proyecto-card">
-                          <div className="chat-proyecto-card-top">
-                            <FolderKanban style={{ width: 14, height: 14 }} />
-                            <span>{m.proyecto.tipoProyecto}{m.proyecto.direccion ? " · " + m.proyecto.direccion : ""}</span>
-                          </div>
-                          <div className="chat-proyecto-card-nombre">{m.proyecto.nombre}</div>
-                          <div className="chat-proyecto-card-fila"><span>Encargado/a</span><b>{m.proyecto.encargado}</b></div>
-                          <div className="chat-proyecto-card-fila"><span>Entrega</span><b>{m.proyecto.fechaEntrega || "Sin definir"}</b></div>
-                          <div className="chat-proyecto-card-avance"><div className="chat-proyecto-card-avance-barra" style={{ width: m.proyecto.avance + "%" }} /></div>
-                          <div className="chat-proyecto-card-fila"><span>Avance</span><b>{m.proyecto.avance}%</b></div>
+                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes. Este canal pertenece únicamente a esta institución.</div>}
+                  {mensajesChat.map(m => {
+                    const personaMensaje = personas.find(p => p.id === m.autorId) || personas.find(p => p.nombre === m.autor);
+                    const foto = m.autorFoto || personaMensaje?.foto || "";
+                    const rol = m.autorRol || personaMensaje?.rol || "Miembro";
+                    const color = m.autorColor || colorPersonaChat(m.autor);
+                    const propio = m.autor === nombreVisible;
+                    return (
+                      <div key={m.id} className={"chat-mensaje-fila" + (propio ? " propio" : "")}>
+                        <div className="chat-avatar" style={{ background: color }} title={`${m.autor} · ${rol}`}>
+                          {foto ? <img src={foto} alt={m.autor} /> : inicialesPersona(m.autor)}
                         </div>
-                      ) : (
-                        <div className="chat-burbuja-texto">{renderTextoConMenciones(m.texto)}</div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="chat-mensaje-contenido">
+                          <div className="chat-mensaje-meta">
+                            <strong style={{ color }}>{m.autor}</strong>
+                            <span className="chat-mensaje-rol">{rol}</span>
+                          </div>
+                          <div className={"chat-burbuja" + (propio ? " chat-burbuja-propia" : "") + (mensajeMencionaA(m.texto, nombreVisible) && !propio ? " chat-burbuja-mencion" : "")} style={m.tipo === "proyecto" ? { maxWidth: "100%" } : { maxWidth: "100%" }}>
+                            {m.tipo === "proyecto" && m.proyecto ? (
+                              <div className="chat-proyecto-card">
+                                <div className="chat-proyecto-card-top"><FolderKanban style={{ width: 14, height: 14 }} /><span>{m.proyecto.tipoProyecto}{m.proyecto.direccion ? " · " + m.proyecto.direccion : ""}</span></div>
+                                <div className="chat-proyecto-card-nombre">{m.proyecto.nombre}</div>
+                                <div className="chat-proyecto-card-fila"><span>Encargado/a</span><b>{m.proyecto.encargado}</b></div>
+                                <div className="chat-proyecto-card-fila"><span>Entrega</span><b>{m.proyecto.fechaEntrega || "Sin definir"}</b></div>
+                                <div className="chat-proyecto-card-avance"><div className="chat-proyecto-card-avance-barra" style={{ width: m.proyecto.avance + "%" }} /></div>
+                                <div className="chat-proyecto-card-fila"><span>Avance</span><b>{m.proyecto.avance}%</b></div>
+                              </div>
+                            ) : <div className="chat-burbuja-texto">{renderTextoConMenciones(m.texto)}</div>}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
                 <div className="chat-rapidas">
                   {RESPUESTAS_RAPIDAS_CHAT.map(r => <button key={r} className="chip chat-chip-rapido" onClick={() => enviarMensajeChat(r)}>{r}</button>)}
                   {EMOJIS_RAPIDOS_CHAT.map(e => <button key={e} className="chip chat-chip-rapido chat-chip-emoji" onClick={() => enviarMensajeChat(e)}>{e}</button>)}
                 </div>
-                <div className="form-inline" style={{ marginBottom: 0, marginTop: 8 }}>
+                <div className="chat-compose">
                   <input type="text" placeholder="Escribe un mensaje… usa @Nombre para mencionar" value={nuevoMensajeChat} onChange={e => setNuevoMensajeChat(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensajeChat()} />
                   <button className="btn btn-primario btn-sm" onClick={() => enviarMensajeChat()}>Enviar</button>
                 </div>
-                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase). Si te mencionan con @TuNombre, ese mensaje se resalta y te aparece un avisito en el menú mientras no lo hayas abierto — pero no llega como notificación al celular si tienes la app cerrada.</div>
               </div>
             )}
           </main>
