@@ -1488,7 +1488,7 @@ export default function EcoRadar() {
   const [herramientaActiva, setHerramientaActiva] = useState("briefs");
   const [brief, setBrief] = useState({ tema: "", objetivo: "", publico: "", mensaje: "", fecha: "", canales: [], responsable: "" });
   const [briefGenerado, setBriefGenerado] = useState(null);
-  const [bancoMensajes, setBancoMensajes] = useState(() => cargar("eco_gad_banco_mensajes", []));
+  const [bancoMensajes, setBancoMensajes] = useState([]);
   const [nuevoMensajeBanco, setNuevoMensajeBanco] = useState({ categoria: CATEGORIAS_BANCO[0], texto: "" });
   const [temaConstructor, setTemaConstructor] = useState("");
   const [variantesConstructor, setVariantesConstructor] = useState(null);
@@ -1499,11 +1499,7 @@ export default function EcoRadar() {
   const [loginClave, setLoginClave] = useState("");
   const [errorLogin, setErrorLogin] = useState("");
 
-  const [personas, setPersonas] = useState(() => {
-    const cargadas = cargar("eco_gad_personas", VACIO.personas);
-    // migración: cuentas guardadas antes de renombrar "Directora" a "Director/a de Comunicación"
-    return cargadas.map(p => (p.rol === "Directora" ? { ...p, rol: ROL_DIRECTORA } : p));
-  });
+  const [personas, setPersonas] = useState([]);
   const [rolesDisponibles, setRolesDisponibles] = useState(() => {
     const guardados = cargar("eco_gad_roles_disp", ROLES_SEED);
     return Array.from(new Set([...ROLES_SEED, ...guardados]));
@@ -1514,7 +1510,7 @@ export default function EcoRadar() {
   const [responsablesUnidad, setResponsablesUnidad] = useState(() => cargar("eco_gad_responsables_unidad", {}));
   const [reportesDiarios, setReportesDiarios] = useState(() => cargar("eco_gad_reportes_diarios", []));
   const [solicitudesApoyo, setSolicitudesApoyo] = useState(() => cargar("eco_gad_solicitudes_apoyo", []));
-  const [contenidoPlan, setContenidoPlan] = useState(() => cargar("eco_gad_contenido_plan", []));
+  const [contenidoPlan, setContenidoPlan] = useState([]);
   const [unidadActual, setUnidadActual] = useState(() => cargar("eco_gad_unidad_actual", UNIDADES_SEED[0]));
   const [tiposEntregableDisponibles, setTiposEntregableDisponibles] = useState(() => {
     const guardados = cargar("eco_gad_tipos_entregable", TIPOS_ENTREGABLE);
@@ -1522,29 +1518,85 @@ export default function EcoRadar() {
   });
   const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
   const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
-  const [tareas, setTareas] = useState(() => cargar("eco_gad_tareas", VACIO.tareas));
-  const [metas, setMetas] = useState(() => cargar("eco_gad_metas", VACIO.metas));
-  const [turnos, setTurnos] = useState(() => cargar("eco_gad_turnos", VACIO.turnos));
-  const [proyectos, setProyectos] = useState(() => cargar("eco_gad_proyectos", VACIO.proyectos));
-  const [cuentas, setCuentas] = useState(() => cargar("eco_gad_cuentas", CUENTAS_INICIALES));
+  const [tareas, setTareas] = useState(VACIO.tareas);
+  const [metas, setMetas] = useState(VACIO.metas);
+  const [turnos, setTurnos] = useState(VACIO.turnos);
+  const [proyectos, setProyectos] = useState(VACIO.proyectos);
+  const [cuentas, setCuentas] = useState(CUENTAS_INICIALES);
   const [cobertura, setCobertura] = useState(() => cargar("eco_gad_cobertura", COBERTURA_BASE));
   const [web, setWeb] = useState(() => cargar("eco_gad_web", []));
-  const [eventos, setEventos] = useState(() => cargar("eco_gad_eventos", VACIO.eventos));
+  const [eventos, setEventos] = useState(VACIO.eventos);
 
-  useEffect(() => guardar("eco_gad_personas", personas), [personas]);
+  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
+  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
+  useEffect(() => guardar("eco_gad_canales_contenido", canalesContenidoDisponibles), [canalesContenidoDisponibles]);
+  useEffect(() => guardar("eco_gad_responsables_unidad", responsablesUnidad), [responsablesUnidad]);
+  useEffect(() => guardar("eco_gad_reportes_diarios", reportesDiarios), [reportesDiarios]);
+  useEffect(() => guardar("eco_gad_solicitudes_apoyo", solicitudesApoyo), [solicitudesApoyo]);
+  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
+  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
+  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
+  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
+  useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
+  useEffect(() => guardar("eco_gad_web", web), [web]);
 
-  // ---- Sincronización en la nube de RRHH (Firestore) para que se vea igual desde cualquier dispositivo ----
+  /* ============================================================================
+     SINCRONIZACIÓN POR INSTITUCIÓN (Firestore, colección app_data/{empresaId})
+     Cada institución (empresaId) tiene su PROPIO documento en la nube. Todo lo
+     que sigue (personas, tareas, metas, turnos, proyectos, plan de contenido,
+     monitoreo de redes y banco de mensajes) se guarda y se lee SOLO de/para la
+     institución en la que se inició sesión — así nunca se mezcla lo de una
+     institución con lo de otra, aunque estén abiertas en el mismo navegador.
+     ============================================================================ */
   const ultimoPersonasSincronizado = useRef(null);
+  const ultimoTareasSincronizado = useRef(null);
+  const ultimoMetasSincronizado = useRef(null);
+  const ultimoTurnosSincronizado = useRef(null);
+  const ultimoProyectosSincronizado = useRef(null);
+  const ultimoContenidoSincronizado = useRef(null);
+  const ultimoCuentasSincronizado = useRef(null);
+  const ultimoBancoMensajesSincronizado = useRef(null);
+  const ultimoEventosSincronizado = useRef(null);
+
+  // Al cambiar de institución (o al entrar), partimos en blanco de inmediato
+  // para no mostrar ni por un segundo los datos de la institución anterior,
+  // mientras llega lo real de esta institución desde la nube.
+  const empresaIdAnteriorRef = useRef(undefined);
+  useEffect(() => {
+    const actual = sesion?.empresaId || null;
+    if (empresaIdAnteriorRef.current === actual) return;
+    empresaIdAnteriorRef.current = actual;
+    setPersonas([]);
+    setTareas(VACIO.tareas);
+    setMetas(VACIO.metas);
+    setTurnos(VACIO.turnos);
+    setProyectos(VACIO.proyectos);
+    setContenidoPlan([]);
+    setCuentas(CUENTAS_INICIALES);
+    setBancoMensajes([]);
+    setEventos(VACIO.eventos);
+    ultimoPersonasSincronizado.current = null;
+    ultimoTareasSincronizado.current = null;
+    ultimoMetasSincronizado.current = null;
+    ultimoTurnosSincronizado.current = null;
+    ultimoProyectosSincronizado.current = null;
+    ultimoContenidoSincronizado.current = null;
+    ultimoCuentasSincronizado.current = null;
+    ultimoBancoMensajesSincronizado.current = null;
+    ultimoEventosSincronizado.current = null;
+  }, [sesion?.empresaId]);
+
+  // -- Personas (RRHH) --
   useEffect(() => {
     if (!sesion?.empresaId) return;
     const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
-      if (snap.exists() && snap.data().personas) {
-        const recibido = JSON.stringify(snap.data().personas);
-        if (recibido === ultimoPersonasSincronizado.current) return;
-        ultimoPersonasSincronizado.current = recibido;
-        setPersonas(snap.data().personas);
-      }
-    }, () => { /* si falla la nube, se sigue usando lo local sin romper nada */ });
+      const nube = (snap.exists() && snap.data().personas) ? snap.data().personas : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoPersonasSincronizado.current) return;
+      ultimoPersonasSincronizado.current = recibido;
+      setPersonas(nube);
+    }, () => {});
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
@@ -1555,47 +1607,165 @@ export default function EcoRadar() {
     setDoc(doc(db, "app_data", sesion.empresaId), { personas }, { merge: true }).catch(() => {});
   }, [personas, sesion?.empresaId]);
 
-  useEffect(() => guardar("eco_gad_roles_disp", rolesDisponibles), [rolesDisponibles]);
-  useEffect(() => guardar("eco_gad_modalidades_disp", modalidadesDisponibles), [modalidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_unidades_disp", unidadesDisponibles), [unidadesDisponibles]);
-  useEffect(() => guardar("eco_gad_canales_contenido", canalesContenidoDisponibles), [canalesContenidoDisponibles]);
-  useEffect(() => guardar("eco_gad_responsables_unidad", responsablesUnidad), [responsablesUnidad]);
-  useEffect(() => guardar("eco_gad_reportes_diarios", reportesDiarios), [reportesDiarios]);
-  useEffect(() => guardar("eco_gad_solicitudes_apoyo", solicitudesApoyo), [solicitudesApoyo]);
-  useEffect(() => guardar("eco_gad_banco_mensajes", bancoMensajes), [bancoMensajes]);
-  useEffect(() => guardar("eco_gad_contenido_plan", contenidoPlan), [contenidoPlan]);
-  useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
-  useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
-  useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
-  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
-  useEffect(() => guardar("eco_gad_tareas", tareas), [tareas]);
-  useEffect(() => guardar("eco_gad_metas", metas), [metas]);
-  useEffect(() => guardar("eco_gad_turnos", turnos), [turnos]);
-  useEffect(() => guardar("eco_gad_proyectos", proyectos), [proyectos]);
-  const ultimoProyectosSincronizado = useRef(null);
-useEffect(() => {
-  if (!sesion?.empresaId) return;
-  const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
-    if (snap.exists() && snap.data().proyectos) {
-      const recibido = JSON.stringify(snap.data().proyectos);
+  // -- Tareas --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().tareas) ? snap.data().tareas : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoTareasSincronizado.current) return;
+      ultimoTareasSincronizado.current = recibido;
+      setTareas(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(tareas);
+    if (serial === ultimoTareasSincronizado.current) return;
+    ultimoTareasSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { tareas }, { merge: true }).catch(() => {});
+  }, [tareas, sesion?.empresaId]);
+
+  // -- Metas --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().metas) ? snap.data().metas : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoMetasSincronizado.current) return;
+      ultimoMetasSincronizado.current = recibido;
+      setMetas(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(metas);
+    if (serial === ultimoMetasSincronizado.current) return;
+    ultimoMetasSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { metas }, { merge: true }).catch(() => {});
+  }, [metas, sesion?.empresaId]);
+
+  // -- Turnos --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().turnos) ? snap.data().turnos : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoTurnosSincronizado.current) return;
+      ultimoTurnosSincronizado.current = recibido;
+      setTurnos(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(turnos);
+    if (serial === ultimoTurnosSincronizado.current) return;
+    ultimoTurnosSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { turnos }, { merge: true }).catch(() => {});
+  }, [turnos, sesion?.empresaId]);
+
+  // -- Proyectos --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().proyectos) ? snap.data().proyectos : [];
+      const recibido = JSON.stringify(nube);
       if (recibido === ultimoProyectosSincronizado.current) return;
       ultimoProyectosSincronizado.current = recibido;
-      setProyectos(snap.data().proyectos);
-    }
-  }, () => {});
-  return () => desuscribir();
-}, [sesion?.empresaId]);
-useEffect(() => {
-  if (!sesion?.empresaId) return;
-  const serial = JSON.stringify(proyectos);
-  if (serial === ultimoProyectosSincronizado.current) return;
-  ultimoProyectosSincronizado.current = serial;
-  setDoc(doc(db, "app_data", sesion.empresaId), { proyectos }, { merge: true }).catch(() => {});
-}, [proyectos, sesion?.empresaId]);
-  useEffect(() => guardar("eco_gad_cuentas", cuentas), [cuentas]);
-  useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
-  useEffect(() => guardar("eco_gad_web", web), [web]);
-  useEffect(() => guardar("eco_gad_eventos", eventos), [eventos]);
+      setProyectos(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(proyectos);
+    if (serial === ultimoProyectosSincronizado.current) return;
+    ultimoProyectosSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { proyectos }, { merge: true }).catch(() => {});
+  }, [proyectos, sesion?.empresaId]);
+
+  // -- Plan de contenido --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().contenidoPlan) ? snap.data().contenidoPlan : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoContenidoSincronizado.current) return;
+      ultimoContenidoSincronizado.current = recibido;
+      setContenidoPlan(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(contenidoPlan);
+    if (serial === ultimoContenidoSincronizado.current) return;
+    ultimoContenidoSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { contenidoPlan }, { merge: true }).catch(() => {});
+  }, [contenidoPlan, sesion?.empresaId]);
+
+  // -- Monitoreo de redes (cuentas) --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().cuentas) ? snap.data().cuentas : CUENTAS_INICIALES;
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoCuentasSincronizado.current) return;
+      ultimoCuentasSincronizado.current = recibido;
+      setCuentas(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(cuentas);
+    if (serial === ultimoCuentasSincronizado.current) return;
+    ultimoCuentasSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { cuentas }, { merge: true }).catch(() => {});
+  }, [cuentas, sesion?.empresaId]);
+
+  // -- Banco de mensajes institucionales --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().bancoMensajes) ? snap.data().bancoMensajes : [];
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoBancoMensajesSincronizado.current) return;
+      ultimoBancoMensajesSincronizado.current = recibido;
+      setBancoMensajes(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(bancoMensajes);
+    if (serial === ultimoBancoMensajesSincronizado.current) return;
+    ultimoBancoMensajesSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { bancoMensajes }, { merge: true }).catch(() => {});
+  }, [bancoMensajes, sesion?.empresaId]);
+
+  // -- Calendario (eventos) --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().eventos) ? snap.data().eventos : VACIO.eventos;
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoEventosSincronizado.current) return;
+      ultimoEventosSincronizado.current = recibido;
+      setEventos(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const serial = JSON.stringify(eventos);
+    if (serial === ultimoEventosSincronizado.current) return;
+    ultimoEventosSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { eventos }, { merge: true }).catch(() => {});
+  }, [eventos, sesion?.empresaId]);
 
   const [modulo, setModulo] = useState("inicio");
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
