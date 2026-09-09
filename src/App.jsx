@@ -1563,10 +1563,12 @@ export default function EcoRadar() {
   // para no mostrar ni por un segundo los datos de la institución anterior,
   // mientras llega lo real de esta institución desde la nube.
   const empresaIdAnteriorRef = useRef(undefined);
+  const permitirEscribirRef = useRef(false);
   useEffect(() => {
     const actual = sesion?.empresaId || null;
     if (empresaIdAnteriorRef.current === actual) return;
     empresaIdAnteriorRef.current = actual;
+    permitirEscribirRef.current = false;
     setPersonas([]);
     setTareas(VACIO.tareas);
     setMetas(VACIO.metas);
@@ -1617,6 +1619,12 @@ export default function EcoRadar() {
         if (cancelado) return;
         await setDoc(ref, { ...campos, migracionCompleta: true }, { merge: true });
       } catch { /* si falla, no se rompe nada; se puede reintentar en el próximo ingreso */ }
+      finally {
+        // Pase lo que pase (ya estaba migrado, se migró ahora, o falló),
+        // recién AQUÍ se permite que el resto de la app empiece a escribir
+        // en la nube — así nunca se sube algo vacío por encima de datos reales.
+        if (!cancelado) permitirEscribirRef.current = true;
+      }
     })();
     return () => { cancelado = true; };
   }, [sesion?.empresaId]);
@@ -1634,7 +1642,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(personas);
     if (serial === ultimoPersonasSincronizado.current) return;
     ultimoPersonasSincronizado.current = serial;
@@ -1654,7 +1662,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(tareas);
     if (serial === ultimoTareasSincronizado.current) return;
     ultimoTareasSincronizado.current = serial;
@@ -1674,7 +1682,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(metas);
     if (serial === ultimoMetasSincronizado.current) return;
     ultimoMetasSincronizado.current = serial;
@@ -1694,7 +1702,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(turnos);
     if (serial === ultimoTurnosSincronizado.current) return;
     ultimoTurnosSincronizado.current = serial;
@@ -1714,7 +1722,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(proyectos);
     if (serial === ultimoProyectosSincronizado.current) return;
     ultimoProyectosSincronizado.current = serial;
@@ -1734,7 +1742,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(contenidoPlan);
     if (serial === ultimoContenidoSincronizado.current) return;
     ultimoContenidoSincronizado.current = serial;
@@ -1754,7 +1762,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(cuentas);
     if (serial === ultimoCuentasSincronizado.current) return;
     ultimoCuentasSincronizado.current = serial;
@@ -1774,7 +1782,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(bancoMensajes);
     if (serial === ultimoBancoMensajesSincronizado.current) return;
     ultimoBancoMensajesSincronizado.current = serial;
@@ -1794,7 +1802,7 @@ export default function EcoRadar() {
     return () => desuscribir();
   }, [sesion?.empresaId]);
   useEffect(() => {
-    if (!sesion?.empresaId) return;
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
     const serial = JSON.stringify(eventos);
     if (serial === ultimoEventosSincronizado.current) return;
     ultimoEventosSincronizado.current = serial;
