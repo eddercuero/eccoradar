@@ -1858,27 +1858,22 @@ export default function EcoRadar() {
     if (!emp || !emp.activa) return;
     setEmpresaEnProceso(id); setErrorLogin(""); setPaso("clave-empresa");
   }
-  function asegurarDirectorPorDefecto(unidad) {
-    setPersonas(prev => {
-      const yaExiste = prev.some(p => (p.unidad || UNIDADES_SEED[0]) === unidad);
-      if (yaExiste) return prev;
-      const nuevoDirector = {
-        id: Date.now(),
-        codigo: "directora",
-        clave: "000",
-        nombre: "Director/a de Comunicación",
-        rol: ROL_DIRECTORA,
-        area: "Institucional",
-        modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
-        unidad,
-        jefeDirecto: "",
-        foto: "",
-        horario: [],
-        tareasFrecuentes: generarTareasFrecuentesPorDefecto(ROL_DIRECTORA),
-        ausencias: [],
-      };
-      return [...prev, nuevoDirector];
-    });
+  function crearDirectorPorDefecto(unidad) {
+    return {
+      id: Date.now(),
+      codigo: "directora",
+      clave: "000",
+      nombre: "Director/a de Comunicación",
+      rol: ROL_DIRECTORA,
+      area: "Institucional",
+      modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
+      unidad,
+      jefeDirecto: "",
+      foto: "",
+      horario: [],
+      tareasFrecuentes: generarTareasFrecuentesPorDefecto(ROL_DIRECTORA),
+      ausencias: [],
+    };
   }
   async function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
@@ -1893,15 +1888,22 @@ export default function EcoRadar() {
           // repuesto si esta institución YA tiene gente real guardada.
           const ref = doc(db, "app_data", empresaEnProceso);
           const snap = await getDoc(ref);
-          const personasNube = (snap.exists() && Array.isArray(snap.data().personas)) ? snap.data().personas : [];
-          if (personasNube.length) {
-            setPersonas(personasNube);
-            ultimoPersonasSincronizado.current = JSON.stringify(personasNube);
-          }
+          let personasNube = (snap.exists() && Array.isArray(snap.data().personas)) ? snap.data().personas : [];
           const yaExisteEnUnidad = personasNube.some(p => (p.unidad || UNIDADES_SEED[0]) === unidadDeEmpresa);
-          if (!yaExisteEnUnidad) asegurarDirectorPorDefecto(unidadDeEmpresa);
+          if (!yaExisteEnUnidad) {
+            // Lo guardamos en la nube AQUÍ MISMO, antes de dejar avanzar, para
+            // que no exista ni un instante en que solo viva en la pantalla y
+            // pueda perderse al llegar la próxima actualización de la nube.
+            personasNube = [...personasNube, crearDirectorPorDefecto(unidadDeEmpresa)];
+            await setDoc(ref, { personas: personasNube }, { merge: true });
+          }
+          setPersonas(personasNube);
+          ultimoPersonasSincronizado.current = JSON.stringify(personasNube);
         } catch {
-          asegurarDirectorPorDefecto(unidadDeEmpresa);
+          setPersonas(prev => {
+            const yaExiste = prev.some(p => (p.unidad || UNIDADES_SEED[0]) === unidadDeEmpresa);
+            return yaExiste ? prev : [...prev, crearDirectorPorDefecto(unidadDeEmpresa)];
+          });
         }
       }
       setPaso("elegir-perfil");
