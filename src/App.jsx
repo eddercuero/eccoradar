@@ -1647,12 +1647,37 @@ useEffect(() => {
     if (!emp || !emp.activa) return;
     setEmpresaEnProceso(id); setErrorLogin(""); setPaso("clave-empresa");
   }
+  function asegurarDirectorPorDefecto(unidad) {
+    setPersonas(prev => {
+      const yaExiste = prev.some(p => (p.unidad || UNIDADES_SEED[0]) === unidad);
+      if (yaExiste) return prev;
+      const nuevoDirector = {
+        id: Date.now(),
+        codigo: "directora",
+        clave: "000",
+        nombre: "Director/a de Comunicación",
+        rol: ROL_DIRECTORA,
+        area: "Institucional",
+        modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
+        unidad,
+        jefeDirecto: "",
+        foto: "",
+        horario: [],
+        tareasFrecuentes: generarTareasFrecuentesPorDefecto(ROL_DIRECTORA),
+        ausencias: [],
+      };
+      return [...prev, nuevoDirector];
+    });
+  }
   function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
     if (claveEmpresaInput === "000" || claveEmpresaInput === emp.clave) {
       setErrorLogin("");
       const unidadDeEmpresa = EMPRESA_UNIDAD_DEFAULT[empresaEnProceso];
-      if (unidadDeEmpresa) setUnidadActual(unidadDeEmpresa);
+      if (unidadDeEmpresa) {
+        setUnidadActual(unidadDeEmpresa);
+        asegurarDirectorPorDefecto(unidadDeEmpresa);
+      }
       setPaso("elegir-perfil");
     }
     else setErrorLogin("Clave de empresa incorrecta.");
