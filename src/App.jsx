@@ -394,7 +394,8 @@ function VisorFacebook({ cuenta }) {
   return (
     <div className="visor-en-vivo">
       <iframe key={cuenta.id} src={src} width="100%" height="600" style={{ border: "none", overflow: "hidden" }} scrolling="no" frameBorder="0" allow="encrypted-media" title={"Facebook en vivo - " + cuenta.handle} />
-      <div className="visor-nota">Esto es la página real de Facebook, mostrada en vivo con el reproductor oficial de Meta — Eco Radar no analiza ni guarda nada de lo que se ve aquí.</div>
+      <a className="btn btn-primario btn-ver-comentarios" href={cuenta.link} target="_blank" rel="noreferrer"><MessageCircle style={{ width: 13, height: 13 }} /> Ver comentarios y reacciones reales en Facebook</a>
+      <div className="visor-nota">El recuadro de arriba solo muestra las publicaciones (así lo permite Meta) — para ver comentarios y reacciones de verdad, usa el botón de arriba, que abre la página real.</div>
     </div>
   );
 }
@@ -419,7 +420,8 @@ function VisorX({ cuenta }) {
   return (
     <div className="visor-en-vivo" ref={contenedorRef}>
       <a className="twitter-timeline" data-height="600" data-theme="light" href={cuenta.link}>Publicaciones de {cuenta.handle} en X</a>
-      <div className="visor-nota">Esto es el cronograma real de X (Twitter), mostrado en vivo con el widget oficial de la plataforma.</div>
+      <a className="btn btn-primario btn-ver-comentarios" href={cuenta.link} target="_blank" rel="noreferrer"><MessageCircle style={{ width: 13, height: 13 }} /> Ver comentarios y reacciones reales en X</a>
+      <div className="visor-nota">El recuadro de arriba solo muestra las publicaciones (así lo permite X) — para ver comentarios y reacciones de verdad, usa el botón de arriba, que abre la página real.</div>
     </div>
   );
 }
@@ -451,6 +453,15 @@ function VisorEnVivo({ cuenta }) {
   return <VisorEnlaceReal cuenta={cuenta} />;
 }
 
+const REACCIONES_RAPIDAS = [
+  { emoji: "👍", etiqueta: "Me gusta" },
+  { emoji: "❤️", etiqueta: "Me encanta" },
+  { emoji: "😂", etiqueta: "Me divierte" },
+  { emoji: "😮", etiqueta: "Me asombra" },
+  { emoji: "😢", etiqueta: "Me entristece" },
+  { emoji: "😡", etiqueta: "Me enoja" },
+  { emoji: "🔥", etiqueta: "Viral" },
+];
 const CALIFICACIONES_PROPIA = ["Normal", "Bajo ataque en comentarios", "Comentarios controlados", "Necesita respuesta", "Viral positivo", "No publicó hoy"];
 const CALIFICACIONES_NEGATIVA = ["Nos ataca directamente", "Comparte noticias de otros", "Postura imparcial", "Sin actividad relevante", "Escalando", "No publicó hoy"];
 const COLOR_CALIFICACION = {
@@ -470,11 +481,13 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
   const opciones = TIPOS_CUENTA_NEGATIVOS.includes(cuenta.tipo) ? CALIFICACIONES_NEGATIVA : CALIFICACIONES_PROPIA;
   const [calificacion, setCalificacion] = useState(opciones[0]);
   const [nota, setNota] = useState("");
+  const [reaccion, setReaccion] = useState("");
   const registros = cuenta.registros || [];
 
   function registrar() {
-    onRegistrar(cuenta.id, calificacion, nota);
+    onRegistrar(cuenta.id, calificacion, nota, reaccion);
     setNota("");
+    setReaccion("");
   }
 
   return (
@@ -496,6 +509,16 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
                 <div className="chips">
                   {opciones.map(o => <div key={o} className={"chip chip-" + colorCalificacion(o) + (calificacion === o ? " activo" : "")} onClick={() => setCalificacion(o)}>{o}</div>)}
                 </div>
+                <div className="registro-reacciones-fila">
+                  <span className="registro-reacciones-label">¿Qué reacción predominó?</span>
+                  <div className="chips" style={{ marginBottom: 0 }}>
+                    {REACCIONES_RAPIDAS.map(r => (
+                      <div key={r.emoji} className={"chip chip-reaccion" + (reaccion === r.emoji ? " activo" : "")} onClick={() => setReaccion(reaccion === r.emoji ? "" : r.emoji)} title={r.etiqueta}>
+                        {r.emoji} {r.etiqueta}
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="form-inline" style={{ marginBottom: 8 }}>
                   <input type="text" placeholder="Nota opcional (ej. respondimos el comentario de las 10am)" value={nota} onChange={e => setNota(e.target.value)} />
                   <button className="btn btn-primario btn-sm" onClick={registrar}><Plus /> Registrar ahora</button>
@@ -507,6 +530,7 @@ function ModalPerfilCuenta({ cuenta, icono, onClose, onRegistrar, onEliminar }) 
                   <div className={"registro-item registro-" + colorCalificacion(r.calificacion)} key={r.id}>
                     <div className="registro-item-cab">
                       <span className={"etiqueta " + etiquetaClaseCalificacion(r.calificacion)}>{r.calificacion}</span>
+                      {r.reaccion && <span className="registro-reaccion-emoji" title="Reacción predominante">{r.reaccion}</span>}
                       <span className="registro-fecha">{r.fecha} · {r.registradoPor}</span>
                     </div>
                     {r.nota && <div className="registro-nota">{r.nota}</div>}
@@ -1359,6 +1383,12 @@ function EstilosGlobales() {
         .chat-para-fila label { font-weight: 600; }
         .chat-para-fila select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); font-family: inherit; font-size: 12px; }
         .chat-para-aviso { font-size: 11px; color: var(--steel); font-style: italic; }
+        .btn-ver-comentarios { width: 100%; justify-content: center; margin-top: 10px; }
+        .registro-reacciones-fila { margin-bottom: 12px; }
+        .registro-reacciones-label { font-size: 11px; color: var(--muted); font-weight: 600; display: block; margin-bottom: 6px; }
+        .chip-reaccion { font-size: 12.5px; }
+        .chip-reaccion.activo { background: var(--rojo-soft); border-color: var(--border-strong); color: var(--rojo); }
+        .registro-reaccion-emoji { font-size: 13px; }
 
         .chat-proyecto-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 2px; }
         .chat-proyecto-card-top { display: flex; align-items: center; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); font-weight: 700; margin-bottom: 3px; }
@@ -2252,8 +2282,8 @@ export default function EcoRadar() {
     setLinkNuevo("");
   }
   function eliminarCuenta(id) { setCuentas(cuentas.filter(c => c.id !== id)); }
-  function agregarRegistroCuenta(cuentaId, calificacion, nota) {
-    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), fechaISO: reloj.toISOString(), calificacion, nota, registradoPor: nombreVisible };
+  function agregarRegistroCuenta(cuentaId, calificacion, nota, reaccion) {
+    const nuevo = { id: Date.now(), fecha: reloj.toLocaleString("es-ES", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), fechaISO: reloj.toISOString(), calificacion, nota, reaccion: reaccion || "", registradoPor: nombreVisible };
     setCuentas(prev => prev.map(c => c.id === cuentaId ? { ...c, registros: [...(c.registros || []), nuevo] } : c));
   }
   function alternarCobertura(id) { setCobertura(cobertura.map(c => c.id === id ? { ...c, cargada: !c.cargada } : c)); }
