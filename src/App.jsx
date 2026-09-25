@@ -21,14 +21,14 @@ import { collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, limit,
 
 const CIUDADES = [
   { id: "manta", nombre: "Manta", activa: true },
-  { id: "ventanas", nombre: "Ventanas", activa: false },
+  { id: "ventanas", nombre: "Ventanas", activa: true },
   { id: "santana", nombre: "Santana", activa: false },
 ];
 const EMPRESAS = [
   { id: "nitidomkt", nombre: "NitidoMKT", tipo: "Agencia de marketing", activa: false, ciudad: "manta" },
   { id: "promoexito", nombre: "PromoÉxito", tipo: "Agencia de marketing", activa: false, ciudad: "manta" },
   { id: "gad_santana", nombre: "GAD Santana", tipo: "Gobierno autónomo descentralizado", activa: false, ciudad: "santana" },
-  { id: "ventanas", nombre: "Ventanas", tipo: "Municipio", activa: false, ciudad: "ventanas" },
+  { id: "ventanas", nombre: "Ventanas", tipo: "Municipio", activa: true, clave: "ventanas2026", ciudad: "ventanas" },
   { id: "107_mejor_ciudad", nombre: "107 Mejor Ciudad", tipo: "Programa institucional", activa: true, clave: "mejorciudad2026", ciudad: "manta" },
   { id: "comunicacion_gad", nombre: "Comunicación GAD Manta", tipo: "Dirección de comunicación", activa: true, clave: "gadmanta2026", ciudad: "manta" },
   { id: "cuerpo_bomberos", nombre: "Cuerpo de Bomberos", tipo: "Institución de socorro", activa: true, clave: "bomberos2026", ciudad: "manta" },
@@ -41,6 +41,7 @@ const EMPRESA_UNIDAD_DEFAULT = {
   epam: "Aguas de Manta",
   "107_mejor_ciudad": "107 Mejor Ciudad",
   comunicacion_externa: "Comunicación Externa",
+  ventanas: "Ventanas",
 };
 
 const CLAVE_ASESOR = "asesor2026";
@@ -76,6 +77,11 @@ const DIRECCIONES_SEED = [
   "Dirección de Talento Humano",
   "Dirección Administrativa",
 ];
+// Algunas instituciones no usan el catálogo genérico de direcciones de GAD Manta,
+// sino uno propio y más corto (por ejemplo, una campaña solo necesita una).
+const DIRECCIONES_POR_EMPRESA_DEFAULT = {
+  ventanas: ["Campaña"],
+};
 
 const TIPOS_CUENTA = ["Propia", "Aliada", "Influencer a favor", "Atacante", "Influencer en contra"];
 const TIPOS_CUENTA_NEGATIVOS = ["Atacante", "Influencer en contra"];
@@ -126,6 +132,13 @@ const NAV = [
 const NAV_MOVIL_PRINCIPAL = ["inicio", "contenido", "equipo", "chat"];
 
 const ROL_DIRECTORA = "Director/a de Comunicación";
+// Igual que DIRECCIONES_POR_EMPRESA_DEFAULT, pero para quién arranca como
+// director/a por defecto la primera vez que alguien entra a esa institución.
+const PERSONAS_POR_EMPRESA_DEFAULT = {
+  ventanas: [
+    { codigo: "mariaemilia", clave: "ventanas2026", nombre: "María Emilia", rol: ROL_DIRECTORA, area: "Institucional" },
+  ],
+};
 const CATEGORIAS_ROLES = {
   "🏛️ Nivel Directivo y Estratégico": [ROL_DIRECTORA, "Gerente / Jefe de Comunicación"],
   "🤝 Comunicación Corporativa e Institucional": ["Responsable de Relaciones con los Medios / Jefe de Prensa", "Responsable de Comunicación de Crisis", "Director/a de Relaciones Institucionales / Asuntos Públicos", "Responsable de RSC / Sostenibilidad"],
@@ -218,7 +231,7 @@ function CirculoProgreso({ pct, size = 58, color = "var(--rojo)" }) {
   );
 }
 const MODALIDADES_SEED = ["LOSEP", "NJS", "Factura", "Externo"];
-const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Aguas de Manta", "Patronato", "107 Mejor Ciudad", "Cuerpo de Bomberos", "Comunicación Externa"];
+const UNIDADES_SEED = ["Dircom (Dirección de Comunicación GAD)", "Aguas de Manta", "Patronato", "107 Mejor Ciudad", "Cuerpo de Bomberos", "Comunicación Externa", "Ventanas"];
 const CANALES_CONTENIDO_SEED = ["Alcaldía", "Autoridad", "Patronato", "Bomberos", "Comunicación Externa"];
 const REDES_CONTENIDO = ["Facebook", "Instagram", "X", "TikTok", "YouTube", "Otro"];
 const ESTADOS_CONTENIDO = ["Por hacer", "Programado", "Publicado"];
@@ -1517,7 +1530,7 @@ export default function EcoRadar() {
     return Array.from(new Set([...TIPOS_ENTREGABLE, ...guardados]));
   });
   const [tiposProyectoDisponibles, setTiposProyectoDisponibles] = useState(() => cargar("eco_gad_tipos_proyecto", TIPOS_PROYECTO_SEED));
-  const [direccionesDisponibles, setDireccionesDisponibles] = useState(() => cargar("eco_gad_direcciones", DIRECCIONES_SEED));
+  const [direccionesDisponibles, setDireccionesDisponibles] = useState(DIRECCIONES_SEED);
   const [tareas, setTareas] = useState(VACIO.tareas);
   const [metas, setMetas] = useState(VACIO.metas);
   const [turnos, setTurnos] = useState(VACIO.turnos);
@@ -1537,7 +1550,6 @@ export default function EcoRadar() {
   useEffect(() => guardar("eco_gad_unidad_actual", unidadActual), [unidadActual]);
   useEffect(() => guardar("eco_gad_tipos_entregable", tiposEntregableDisponibles), [tiposEntregableDisponibles]);
   useEffect(() => guardar("eco_gad_tipos_proyecto", tiposProyectoDisponibles), [tiposProyectoDisponibles]);
-  useEffect(() => guardar("eco_gad_direcciones", direccionesDisponibles), [direccionesDisponibles]);
   useEffect(() => guardar("eco_gad_cobertura", cobertura), [cobertura]);
   useEffect(() => guardar("eco_gad_web", web), [web]);
 
@@ -1558,6 +1570,7 @@ export default function EcoRadar() {
   const ultimoCuentasSincronizado = useRef(null);
   const ultimoBancoMensajesSincronizado = useRef(null);
   const ultimoEventosSincronizado = useRef(null);
+  const ultimoDireccionesSincronizado = useRef(null);
 
   // Al cambiar de institución (o al entrar), partimos en blanco de inmediato
   // para no mostrar ni por un segundo los datos de la institución anterior,
@@ -1577,6 +1590,7 @@ export default function EcoRadar() {
     setCuentas(CUENTAS_INICIALES);
     setBancoMensajes([]);
     setEventos(VACIO.eventos);
+    setDireccionesDisponibles(DIRECCIONES_SEED);
     ultimoPersonasSincronizado.current = null;
     ultimoTareasSincronizado.current = null;
     ultimoMetasSincronizado.current = null;
@@ -1586,6 +1600,7 @@ export default function EcoRadar() {
     ultimoCuentasSincronizado.current = null;
     ultimoBancoMensajesSincronizado.current = null;
     ultimoEventosSincronizado.current = null;
+    ultimoDireccionesSincronizado.current = null;
   }, [sesion?.empresaId]);
 
   // -- Rescate único: si esta institución nunca había guardado estos módulos en
@@ -1614,6 +1629,7 @@ export default function EcoRadar() {
           cuentas: noVacio(datos.cuentas) ? datos.cuentas : cargar("eco_gad_cuentas", []),
           bancoMensajes: noVacio(datos.bancoMensajes) ? datos.bancoMensajes : cargar("eco_gad_banco_mensajes", []),
           eventos: noVacio(datos.eventos) ? datos.eventos : cargar("eco_gad_eventos", {}),
+          direccionesDisponibles: noVacio(datos.direccionesDisponibles) ? datos.direccionesDisponibles : (DIRECCIONES_POR_EMPRESA_DEFAULT[sesion.empresaId] || cargar("eco_gad_direcciones", DIRECCIONES_SEED)),
         };
         if (cancelado) return;
         await setDoc(ref, { ...campos, migracionCompleta: true }, { merge: true });
@@ -1808,6 +1824,26 @@ export default function EcoRadar() {
     setDoc(doc(db, "app_data", sesion.empresaId), { eventos }, { merge: true }).catch(() => {});
   }, [eventos, sesion?.empresaId]);
 
+  // -- Catálogo de direcciones (para proyectos) --
+  useEffect(() => {
+    if (!sesion?.empresaId) return;
+    const desuscribir = onSnapshot(doc(db, "app_data", sesion.empresaId), (snap) => {
+      const nube = (snap.exists() && snap.data().direccionesDisponibles) ? snap.data().direccionesDisponibles : (DIRECCIONES_POR_EMPRESA_DEFAULT[sesion.empresaId] || DIRECCIONES_SEED);
+      const recibido = JSON.stringify(nube);
+      if (recibido === ultimoDireccionesSincronizado.current) return;
+      ultimoDireccionesSincronizado.current = recibido;
+      setDireccionesDisponibles(nube);
+    }, () => {});
+    return () => desuscribir();
+  }, [sesion?.empresaId]);
+  useEffect(() => {
+    if (!sesion?.empresaId || !permitirEscribirRef.current) return;
+    const serial = JSON.stringify(direccionesDisponibles);
+    if (serial === ultimoDireccionesSincronizado.current) return;
+    ultimoDireccionesSincronizado.current = serial;
+    setDoc(doc(db, "app_data", sesion.empresaId), { direccionesDisponibles }, { merge: true }).catch(() => {});
+  }, [direccionesDisponibles, sesion?.empresaId]);
+
   const [modulo, setModulo] = useState("inicio");
   const [menuMovilAbierto, setMenuMovilAbierto] = useState(false);
   const [reloj, setReloj] = useState(new Date());
@@ -1858,22 +1894,54 @@ export default function EcoRadar() {
     if (!emp || !emp.activa) return;
     setEmpresaEnProceso(id); setErrorLogin(""); setPaso("clave-empresa");
   }
-  function crearDirectorPorDefecto(unidad) {
-    return {
-      id: Date.now(),
-      codigo: "directora",
-      clave: "000",
-      nombre: "Director/a de Comunicación",
-      rol: ROL_DIRECTORA,
-      area: "Institucional",
-      modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
-      unidad,
-      jefeDirecto: "",
-      foto: "",
-      horario: [],
-      tareasFrecuentes: generarTareasFrecuentesPorDefecto(ROL_DIRECTORA),
-      ausencias: [],
-    };
+  function crearPersonasPorDefecto(unidad, empresaId) {
+    const base = Date.now();
+    const plantilla = PERSONAS_POR_EMPRESA_DEFAULT[empresaId];
+    if (plantilla && plantilla.length) {
+      return plantilla.map((p, i) => ({
+        id: base + i,
+        modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
+        unidad,
+        jefeDirecto: "",
+        foto: "",
+        horario: [],
+        tareasFrecuentes: generarTareasFrecuentesPorDefecto(p.rol),
+        ausencias: [],
+        ...p,
+      }));
+    }
+    return [
+      {
+        id: base,
+        codigo: "directora",
+        clave: "directora2026",
+        nombre: "Director/a de Comunicación",
+        rol: ROL_DIRECTORA,
+        area: "Institucional",
+        modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
+        unidad,
+        jefeDirecto: "",
+        foto: "",
+        horario: [],
+        tareasFrecuentes: generarTareasFrecuentesPorDefecto(ROL_DIRECTORA),
+        ausencias: [],
+      },
+      {
+        id: base + 1,
+        codigo: "001",
+        clave: "001",
+        nombre: "Usuario 001",
+        rol: rolesDisponibles[1] || rolesDisponibles[0],
+        area: "Institucional",
+        modalidad: modalidadesDisponibles[0] || MODALIDADES_SEED[0],
+        unidad,
+        jefeDirecto: "Director/a de Comunicación",
+        foto: "",
+        horario: [],
+        tareasFrecuentes: [],
+        ausencias: [],
+      },
+    ];
   }
   async function confirmarClaveEmpresa() {
     const emp = EMPRESAS.find(e => e.id === empresaEnProceso);
@@ -1894,7 +1962,7 @@ export default function EcoRadar() {
             // Lo guardamos en la nube AQUÍ MISMO, antes de dejar avanzar, para
             // que no exista ni un instante en que solo viva en la pantalla y
             // pueda perderse al llegar la próxima actualización de la nube.
-            personasNube = [...personasNube, crearDirectorPorDefecto(unidadDeEmpresa)];
+            personasNube = [...personasNube, ...crearPersonasPorDefecto(unidadDeEmpresa, empresaEnProceso)];
             await setDoc(ref, { personas: personasNube }, { merge: true });
           }
           setPersonas(personasNube);
@@ -1902,7 +1970,7 @@ export default function EcoRadar() {
         } catch {
           setPersonas(prev => {
             const yaExiste = prev.some(p => (p.unidad || UNIDADES_SEED[0]) === unidadDeEmpresa);
-            return yaExiste ? prev : [...prev, crearDirectorPorDefecto(unidadDeEmpresa)];
+            return yaExiste ? prev : [...prev, ...crearPersonasPorDefecto(unidadDeEmpresa, empresaEnProceso)];
           });
         }
       }
