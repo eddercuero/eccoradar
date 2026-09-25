@@ -1352,6 +1352,13 @@ function EstilosGlobales() {
         .chat-chip-emoji { font-size: 15px; padding: 4px 10px; }
         .chat-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 20px; background: var(--rojo); color: #fff; font-size: 10px; font-weight: 800; margin-left: 6px; }
         .chat-badge-tile { position: absolute; top: 8px; right: 8px; margin-left: 0; }
+        .chat-burbuja-privada { border-style: dashed; border-color: var(--steel); }
+        .chat-etiqueta-privado { display: inline-flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 700; color: var(--steel); background: var(--steel-soft); border-radius: 20px; padding: 1px 7px; margin-left: 6px; text-transform: none; }
+        .chat-imagen-adjunta { display: block; max-width: 100%; border-radius: 8px; margin-top: 2px; }
+        .chat-para-fila { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+        .chat-para-fila label { font-weight: 600; }
+        .chat-para-fila select { padding: 5px 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); font-family: inherit; font-size: 12px; }
+        .chat-para-aviso { font-size: 11px; color: var(--steel); font-style: italic; }
 
         .chat-proyecto-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-top: 2px; }
         .chat-proyecto-card-top { display: flex; align-items: center; gap: 5px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--dim); font-weight: 700; margin-bottom: 3px; }
@@ -1496,6 +1503,7 @@ export default function EcoRadar() {
   const [mostrarMiPerfil, setMostrarMiPerfil] = useState(false);
   const [mensajesChat, setMensajesChat] = useState([]);
   const [nuevoMensajeChat, setNuevoMensajeChat] = useState("");
+  const [destinatarioChat, setDestinatarioChat] = useState("todos");
   const [chatCargando, setChatCargando] = useState(true);
   const [chatError, setChatError] = useState("");
   const [herramientaActiva, setHerramientaActiva] = useState("briefs");
@@ -1874,19 +1882,52 @@ export default function EcoRadar() {
   }, [sesion?.empresaId]);
 
   const [ultimaLecturaChat, setUltimaLecturaChat] = useState(() => cargar("eco_radar_ultima_lectura_chat", {}));
-  async function enviarMensajeChat(textoDirecto) {
+  async function enviarMensajeChat(textoDirecto, opciones) {
     const texto = (textoDirecto || nuevoMensajeChat).trim();
-    if (!texto || !sesion?.empresaId) return;
-    if (!textoDirecto) setNuevoMensajeChat("");
+    const para = (opciones && opciones.para) || destinatarioChat || "todos";
+    const imagenBase64 = opciones && opciones.imagenBase64;
+    if ((!texto && !imagenBase64) || !sesion?.empresaId) return;
+    if (!textoDirecto && !imagenBase64) setNuevoMensajeChat("");
     try {
-      await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), {
+      const payload = {
         autor: nombreVisible,
-        texto,
+        texto: texto || "",
         creadoEn: serverTimestamp(),
-      });
+        para: para !== "todos" ? para : "todos",
+      };
+      if (imagenBase64) {
+        payload.tipo = "imagen";
+        payload.imagenBase64 = imagenBase64;
+      }
+      await addDoc(collection(db, "chats", sesion.empresaId, "mensajes"), payload);
     } catch (err) {
       setChatError("No se pudo enviar el mensaje. Revisa la conexión con Firebase.");
     }
+  }
+  const [subiendoImagenChat, setSubiendoImagenChat] = useState(false);
+  function manejarImagenChat(file) {
+    if (!file) return;
+    setSubiendoImagenChat(true);
+    const lector = new FileReader();
+    lector.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxAncho = 900;
+        const escala = Math.min(1, maxAncho / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * escala);
+        canvas.height = Math.round(img.height * escala);
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.72);
+        enviarMensajeChat("", { imagenBase64: dataUrl, para: destinatarioChat });
+        setSubiendoImagenChat(false);
+      };
+      img.onerror = () => setSubiendoImagenChat(false);
+      img.src = e.target.result;
+    };
+    lector.onerror = () => setSubiendoImagenChat(false);
+    lector.readAsDataURL(file);
   }
 
   function iniciarSesionEmpresa(id) {
@@ -2047,7 +2088,7 @@ export default function EcoRadar() {
     }
   }, [modulo, mensajesChat.length, usuarioActual]);
   const indiceLeidoChat = usuarioActual ? (ultimaLecturaChat[usuarioActual.id] || 0) : mensajesChat.length;
-  const mencionesSinLeer = mensajesChat.slice(indiceLeidoChat).filter(m => mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible).length;
+  const mencionesSinLeer = mensajesChat.slice(indiceLeidoChat).filter(m => m.autor !== nombreVisible && (mensajeMencionaA(m.texto, nombreVisible) || m.para === nombreVisible)).length;
 
   const tareasVisibles = esAdmin ? tareas : tareas.filter(t => t.responsable === nombreVisible);
   const metasPropias = esAdmin ? metas : metas.filter(m => m.persona === nombreVisible);
@@ -4202,16 +4243,24 @@ export default function EcoRadar() {
               </>
             )}
 
-            {modulo === "chat" && (
+            {modulo === "chat" && (() => {
+              const mensajesVisibles = mensajesChat.filter(m => !m.para || m.para === "todos" || m.para === nombreVisible || m.autor === nombreVisible);
+              const destinatarios = ["todos", ...personasEquipo.filter(p => p.nombre !== nombreVisible).map(p => p.nombre)];
+              return (
               <div className="panel" style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 190px)" }}>
                 <div className="panel-titulo panel-titulo-app">Chat del equipo · {EMPRESAS.find(e => e.id === sesion?.empresaId)?.nombre}</div>
                 {chatError && <div className="auth-error" style={{ marginBottom: 10 }}>⚠ {chatError}</div>}
                 <div className="chat-lista" ref={el => { if (el) el.scrollTop = el.scrollHeight; }}>
                   {chatCargando && <div className="campo-vacio">Conectando…</div>}
-                  {!chatCargando && mensajesChat.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir. Usa @Nombre para mencionar a alguien de tu equipo.</div>}
-                  {mensajesChat.map(m => (
-                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "") + (mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible ? " chat-burbuja-mencion" : "")} style={m.tipo === "proyecto" ? { maxWidth: "85%" } : undefined}>
-                      <div className="chat-burbuja-autor">{m.autor}</div>
+                  {!chatCargando && mensajesVisibles.length === 0 && !chatError && <div className="campo-vacio">Aún no hay mensajes — sé el primero en escribir. Usa @Nombre para mencionar a alguien de tu equipo.</div>}
+                  {mensajesVisibles.map(m => {
+                    const esPrivado = m.para && m.para !== "todos";
+                    return (
+                    <div key={m.id} className={"chat-burbuja" + (m.autor === nombreVisible ? " chat-burbuja-propia" : "") + (mensajeMencionaA(m.texto, nombreVisible) && m.autor !== nombreVisible ? " chat-burbuja-mencion" : "") + (esPrivado ? " chat-burbuja-privada" : "")} style={(m.tipo === "proyecto" || m.tipo === "imagen") ? { maxWidth: "85%" } : undefined}>
+                      <div className="chat-burbuja-autor">
+                        {m.autor}
+                        {esPrivado && <span className="chat-etiqueta-privado">🔒 Privado{m.autor === nombreVisible ? " para " + m.para : ""}</span>}
+                      </div>
                       {m.tipo === "proyecto" && m.proyecto ? (
                         <div className="chat-proyecto-card">
                           <div className="chat-proyecto-card-top">
@@ -4224,23 +4273,42 @@ export default function EcoRadar() {
                           <div className="chat-proyecto-card-avance"><div className="chat-proyecto-card-avance-barra" style={{ width: m.proyecto.avance + "%" }} /></div>
                           <div className="chat-proyecto-card-fila"><span>Avance</span><b>{m.proyecto.avance}%</b></div>
                         </div>
+                      ) : m.tipo === "imagen" && m.imagenBase64 ? (
+                        <>
+                          <img src={m.imagenBase64} alt="Foto enviada al chat" className="chat-imagen-adjunta" />
+                          {m.texto && <div className="chat-burbuja-texto" style={{ marginTop: 6 }}>{renderTextoConMenciones(m.texto)}</div>}
+                        </>
                       ) : (
                         <div className="chat-burbuja-texto">{renderTextoConMenciones(m.texto)}</div>
                       )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="chat-rapidas">
                   {RESPUESTAS_RAPIDAS_CHAT.map(r => <button key={r} className="chip chat-chip-rapido" onClick={() => enviarMensajeChat(r)}>{r}</button>)}
                   {EMOJIS_RAPIDOS_CHAT.map(e => <button key={e} className="chip chat-chip-rapido chat-chip-emoji" onClick={() => enviarMensajeChat(e)}>{e}</button>)}
                 </div>
+                <div className="chat-para-fila">
+                  <label>Para:</label>
+                  <select value={destinatarioChat} onChange={e => setDestinatarioChat(e.target.value)}>
+                    {destinatarios.map(d => <option key={d} value={d}>{d === "todos" ? "Todo el equipo" : d}</option>)}
+                  </select>
+                  {destinatarioChat !== "todos" && <span className="chat-para-aviso">🔒 Este mensaje solo lo va a ver {destinatarioChat}</span>}
+                </div>
                 <div className="form-inline" style={{ marginBottom: 0, marginTop: 8 }}>
+                  <label className="btn btn-sm" style={{ cursor: subiendoImagenChat ? "wait" : "pointer", flexShrink: 0 }} title="Enviar una foto">
+                    <Camera style={{ width: 13, height: 13 }} />
+                    <input type="file" accept="image/*" style={{ display: "none" }} disabled={subiendoImagenChat} onChange={e => { manejarImagenChat(e.target.files[0]); e.target.value = ""; }} />
+                  </label>
                   <input type="text" placeholder="Escribe un mensaje… usa @Nombre para mencionar" value={nuevoMensajeChat} onChange={e => setNuevoMensajeChat(e.target.value)} onKeyDown={e => e.key === "Enter" && enviarMensajeChat()} />
                   <button className="btn btn-primario btn-sm" onClick={() => enviarMensajeChat()}>Enviar</button>
                 </div>
-                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase). Si te mencionan con @TuNombre, ese mensaje se resalta y te aparece un avisito en el menú mientras no lo hayas abierto — pero no llega como notificación al celular si tienes la app cerrada.</div>
+                {subiendoImagenChat && <div className="aviso-simulado">Enviando foto…</div>}
+                <div className="aviso-simulado">Este chat es en tiempo real de verdad (usa Firebase). Elige "Para" arriba del mensaje si quieres que sea privado con una sola persona; por defecto se envía a todo el equipo. Si te mencionan con @TuNombre o te escriben en privado, ese mensaje se resalta y te aparece un avisito en el menú mientras no lo hayas abierto — pero no llega como notificación al celular si tienes la app cerrada.</div>
               </div>
-            )}
+              );
+            })()}
           </main>
         </>
         );
